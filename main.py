@@ -678,7 +678,10 @@ def callback_buy_item(call):
     else:
         response = "Неизвестный товар."
 
-    bot.send_message(chat_id, response, parse_mode='html')
+    if response == 'Недостаточно средств для покупки этого улучшения.':
+        bot.answer_callback_query(call.id, response, show_alert=True)
+    else:
+        bot.send_message(chat_id, response, parse_mode='html')
 
 
 def can_steal(user_id, chat_id):
