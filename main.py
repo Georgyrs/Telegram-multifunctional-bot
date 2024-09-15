@@ -5,8 +5,11 @@ import sqlite3
 import time
 import requests
 import telebot
+# from langchain.schema import HumanMessage, SystemMessage
+# from langchain_community.chat_models.gigachat import GigaChat
 import wikipedia
 from bs4 import BeautifulSoup
+from langchain.chains.question_answering.map_reduce_prompt import messages
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import config
 bot = telebot.TeleBot(config.BOT_TOKEN)
@@ -204,7 +207,7 @@ def handle_all_messages(message):
         rp_commands(message)
     elif text.startswith('факт'):
         randomfact(message)
-    elif text.startswith('работать'):
+    elif text == 'работать':
         work(message)
     elif text.startswith('шоп'):
         openshop(message)
@@ -212,10 +215,28 @@ def handle_all_messages(message):
         check_balance(message)
     elif text.startswith('ограбить'):
         steal_money(message)
+    # elif text.startswith('сигнат'):
+    #     neuro_answer(message)
+    elif text == 'воркать':
+        work_command(message)
     else:
         pass
     check_and_notify_events()
 
+# def neuro_answer(message):
+#     question = message.text[7:]  # Берем вопрос с удалением первых 7 символов
+#
+#     chat = GigaChat(credentials=config.GIGACHAT_KEY, verify_ssl_certs=False)
+#
+#     messages = [
+#         {"content": "Я — телеграм-бот группы класса 8В 17 лицея г. Калининграда"},
+#         {"content": question},
+#     ]
+#
+#     response = chat.invoke(messages)  # Используем invoke вместо __call__
+#
+#     if isinstance(response, dict) and "content" in response:
+#         bot.send_message(message.chat_id, response["content"])
 
 def respond_start(message):
     response = "*Здравствуйте!* Я бот созданный специально для 8-В! Напишите *руководство* чтобы узнать команды."
@@ -420,7 +441,6 @@ def rp_commands(message):
         response1 = f"@{usercalled} {action_modified} {user}! \n\n{random_choice}"
         bot.send_message(message.chat.id, response1)
 
-
 def randomfact(message):
     random_fact = random.choice(news_list)
     bot.send_message(message.chat.id, f"*{random_fact}*", parse_mode='Markdown')
@@ -474,6 +494,45 @@ def do_job(user_id, chat_id):
     return job[0], payment
 
 
+WORK_DELAY = 4
+
+last_work_time = {}
+
+
+def work_command(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    current_time = time.time()
+    if user_id in last_work_time and current_time - last_work_time[user_id] < WORK_DELAY:
+        remaining_time = WORK_DELAY - (current_time - last_work_time[user_id])
+        bot.send_message(chat_id, f"🦣 Вы сможете снова скамить через {int(remaining_time // 60)} минут.")
+        return
+
+    last_work_time[user_id] = current_time
+
+    job_name = "🌈 Скамерсант"
+    min_payment = 400
+    max_payment = 750
+
+    payment = random.randint(min_payment, max_payment)
+
+    cursor.execute(
+        'SELECT * FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = "Ускоритель заработка"',
+        (user_id, chat_id))
+    if cursor.fetchone():
+        payment = int(payment * 1.5)
+
+    if random.random() < 0.2:
+        loss = 5000
+        update_balance(user_id, chat_id, -loss)
+        update_balance(1548224823, chat_id, loss)
+        bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
+    else:
+        update_balance(user_id, chat_id, payment)
+        bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили</i> мамонта", parse_mode='html')
+
+
+
 cooldowns = {}
 cooldowns_steal = {}
 
@@ -522,10 +581,11 @@ def work(message):
 def check_balance(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
+    username = message.from_user.username
 
     balance = get_balance(user_id, chat_id)
-    response = f"Ваш текущий баланс 👛: {balance} монет."
-    bot.send_message(chat_id, response)
+    response = f"@{username}\n\n<i>Ваш текущий баланс 👛:</i> <b>{int(balance)}</b> <i>монет.</i>"
+    bot.send_message(chat_id, response, parse_mode='html')
 
 
 def init_upgrades():
@@ -678,5 +738,7 @@ def steal_money(message):
     except Exception as e:
         bot.reply_to(message, f"*Произошла ошибка:* {e}", parse_mode='Markdown')
 
-
-bot.polling(none_stop=True)
+try:
+    bot.polling(none_stop=True)
+except:
+    pass
