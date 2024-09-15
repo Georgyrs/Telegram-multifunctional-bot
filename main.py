@@ -494,7 +494,7 @@ def do_job(user_id, chat_id):
     return job[0], payment
 
 
-WORK_DELAY = 4
+WORK_DELAY = 4 * 60 * 60
 
 last_work_time = {}
 
@@ -522,14 +522,28 @@ def work_command(message):
     if cursor.fetchone():
         payment = int(payment * 1.5)
 
-    if random.random() < 0.2:
-        loss = 5000
-        update_balance(user_id, chat_id, -loss)
-        update_balance(1548224823, chat_id, loss)
-        bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
+    cursor.execute(
+        'SELECT * FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = "VPN"',
+        (user_id, chat_id))
+    if cursor.fetchone():
+        if random.random() == 0.1:
+            loss = 5000
+            update_balance(user_id, chat_id, -loss)
+            update_balance(1548224823, chat_id, loss)
+            bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
+        else:
+            update_balance(user_id, chat_id, payment)
+            bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили</i> мамонта", parse_mode='html')
+
     else:
-        update_balance(user_id, chat_id, payment)
-        bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили</i> мамонта", parse_mode='html')
+        if random.random() < 0.2:
+            loss = 5000
+            update_balance(user_id, chat_id, -loss)
+            update_balance(1548224823, chat_id, loss)
+            bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
+        else:
+            update_balance(user_id, chat_id, payment)
+            bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили</i> мамонта", parse_mode='html')
 
 
 
@@ -590,10 +604,10 @@ def check_balance(message):
 
 def init_upgrades():
     upgrades = [
-        ("📈 Ускоритель заработка", 500),
-        ("💎 Бизнес", 2000),
-        ("😍 VPN", 1100),
-        ("⛏️ Майнинг", 1400)
+        ("Ускоритель заработка", 500),
+        ("Бизнес", 2000),
+        ("VPN", 1100),
+        ("Майнинг", 1400)
     ]
 
     cursor.executemany('INSERT INTO upgrades (upgrade_name, cost) VALUES (?, ?)', upgrades)
@@ -621,8 +635,7 @@ def buy_upgrade(user_id, chat_id, upgrade_name):
                            (user_id, chat_id, upgrade_name))
             conn.commit()
 
-            response = f"Вы успешно купили улучшение '{upgrade_name}' за {cost[0]} монет!" \
-                       f" Ваш текущий баланс: {balance - cost[0]} монет."
+            response = f"✔️ <i>Вы успешно купили улучшение</i> <b>{upgrade_name}</b> <i>за</i> <b>{cost[0]}</b> <i>монет!</i>\n\n💵 <b>Ваш текущий баланс: {balance} монет.</b>"
         else:
             response = "Недостаточно средств для покупки этого улучшения."
     else:
@@ -634,13 +647,14 @@ def buy_upgrade(user_id, chat_id, upgrade_name):
 def openshop(message):
     user_id = message.from_user.id
     markup = InlineKeyboardMarkup(row_width=1)
-    item1 = InlineKeyboardButton("Ускоритель заработка - 500 монет", callback_data=f"buy_upgrade_accelerator_{user_id}")
-    item2 = InlineKeyboardButton("Улучшенный инструмент - 1000 монет", callback_data=f"buy_upgrade_tool_{user_id}")
-    item3 = InlineKeyboardButton("Бизнес - 2000 монет", callback_data=f"buy_upgrade_business_{user_id}")
+    item1 = InlineKeyboardButton("📈 Ускоритель заработка - 500 монет", callback_data=f"buy_upgrade_accelerator_{user_id}")
+    item2 = InlineKeyboardButton("💎 Бизнес - 2000 монет", callback_data=f"buy_upgrade_business_{user_id}")
+    item3 = InlineKeyboardButton("😍 VPN - 1100 монет", callback_data=f"buy_upgrade_vpn_{user_id}")
+    item4 = InlineKeyboardButton("⛏️ Майнинг - 1400 монет", callback_data=f"buy_upgrade_mining_{user_id}")
 
-    markup.add(item1, item2, item3)
+    markup.add(item1, item2, item3, item4)
 
-    bot.send_message(message.chat.id, "Добро пожаловать в магазин! Выберите улучшение:", reply_markup=markup)
+    bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
@@ -657,10 +671,14 @@ def callback_buy_item(call):
         response = buy_upgrade(user_id, chat_id, "Улучшенный инструмент")
     elif data == "buy_upgrade_business":
         response = buy_upgrade(user_id, chat_id, "Бизнес")
+    elif data == "buy_upgrade_vpn":
+        response = buy_upgrade(user_id, chat_id, "VPN")
+    elif data == "buy_upgrade_mining":
+        response = buy_upgrade(user_id, chat_id, "Майнинг")
     else:
         response = "Неизвестный товар."
 
-    bot.send_message(chat_id, response)
+    bot.send_message(chat_id, response, parse_mode='html')
 
 
 def can_steal(user_id, chat_id):
