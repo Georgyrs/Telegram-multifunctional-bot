@@ -680,6 +680,8 @@ def callback_buy_item(call):
 
     if response == 'Недостаточно средств для покупки этого улучшения.':
         bot.answer_callback_query(call.id, response, show_alert=True)
+    elif response == 'Вы уже купили это улучшение.':
+        bot.answer_callback_query(call.id, response, show_alert=True)
     else:
         bot.send_message(chat_id, response, parse_mode='html')
 
