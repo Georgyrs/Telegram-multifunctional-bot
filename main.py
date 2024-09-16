@@ -178,7 +178,18 @@ init_jobs()
 
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
     text = message.text.lower().strip()
+
+    cursor.execute(
+        'SELECT * FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = "VIP"',
+        (user_id, chat_id)
+    )
+
+    result = cursor.fetchone()
+
+    is_vip = result is not None
 
     if text.startswith('start'):
         respond_start(message)
@@ -214,9 +225,22 @@ def handle_all_messages(message):
         steal_money(message)
     elif text == 'воркать':
         work_command(message)
+
+    if is_vip:
+        if text.startswith('випкоманда 1'):
+            respond_start(message)
+        elif text.startswith('випкоманда 2'):
+            respond_help(message)
+        elif text.startswith('випкоманда 3'):
+            respond_ships(message)
+        else:
+            pass
     else:
-        pass
+        if text.startswith('вип') or text.startswith('проверка вип'):
+            bot.send_message(chat_id, 'Вы не владеете подпиской!')
+
     check_and_notify_events()
+
 
 def respond_start(message):
     response = "*Здравствуйте!* Я бот созданный специально для 8-В! Напишите *руководство* чтобы узнать команды."
@@ -480,7 +504,7 @@ def do_job(user_id, chat_id):
             if business_owner_id != user_id:
                 update_balance(business_owner_id, chat_id, business_profit)
 
-    if job[0].lower() == "Проститутка":
+    if job[0] == "Проститутка":
         special_message = "💔 К сожалению, заказчику не понравился стриптиз, и он выдворил вас на улицу без оплаты. 🚪😔"
         bot.send_message(chat_id, special_message)
     return job[0], payment
@@ -599,7 +623,8 @@ def init_upgrades():
         ("Ускоритель заработка", 500),
         ("Бизнес", 2000),
         ("VPN", 1100),
-        ("Майнинг", 1400)
+        ("Майнинг", 1400),
+        ("VIP", 15000)
     ]
 
     cursor.executemany('INSERT INTO upgrades (upgrade_name, cost) VALUES (?, ?)', upgrades)
@@ -643,8 +668,9 @@ def openshop(message):
     item2 = InlineKeyboardButton("💎 Бизнес - 2000 монет", callback_data=f"buy_upgrade_business_{user_id}")
     item3 = InlineKeyboardButton("😍 VPN - 1100 монет", callback_data=f"buy_upgrade_vpn_{user_id}")
     item4 = InlineKeyboardButton("⛏️ Майнинг - 1400 монет", callback_data=f"buy_upgrade_mining_{user_id}")
+    item5 = InlineKeyboardButton("🪙 VIP - 15000 монет", callback_data=f"buy_upgrade_vip_{user_id}")
 
-    markup.add(item1, item2, item3, item4)
+    markup.add(item1, item2, item3, item4, item5)
 
     bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
 
@@ -667,6 +693,8 @@ def callback_buy_item(call):
         response = buy_upgrade(user_id, chat_id, "VPN")
     elif data == "buy_upgrade_mining":
         response = buy_upgrade(user_id, chat_id, "Майнинг")
+    elif data == "buy_upgrade_vip":
+        response = buy_upgrade(user_id, chat_id, "VIP")
     else:
         response = "Неизвестный товар."
 
