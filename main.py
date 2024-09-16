@@ -5,11 +5,8 @@ import sqlite3
 import time
 import requests
 import telebot
-# from langchain.schema import HumanMessage, SystemMessage
-# from langchain_community.chat_models.gigachat import GigaChat
 import wikipedia
 from bs4 import BeautifulSoup
-from langchain.chains.question_answering.map_reduce_prompt import messages
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import config
 bot = telebot.TeleBot(config.BOT_TOKEN)
@@ -212,31 +209,14 @@ def handle_all_messages(message):
     elif text.startswith('шоп'):
         openshop(message)
     elif text.startswith('кошелек') or text.startswith('кошелёк'):
-        check_balance(message)
+        stata(message)
     elif text.startswith('ограбить'):
         steal_money(message)
-    # elif text.startswith('сигнат'):
-    #     neuro_answer(message)
     elif text == 'воркать':
         work_command(message)
     else:
         pass
     check_and_notify_events()
-
-# def neuro_answer(message):
-#     question = message.text[7:]  # Берем вопрос с удалением первых 7 символов
-#
-#     chat = GigaChat(credentials=config.GIGACHAT_KEY, verify_ssl_certs=False)
-#
-#     messages = [
-#         {"content": "Я — телеграм-бот группы класса 8В 17 лицея г. Калининграда"},
-#         {"content": question},
-#     ]
-#
-#     response = chat.invoke(messages)  # Используем invoke вместо __call__
-#
-#     if isinstance(response, dict) and "content" in response:
-#         bot.send_message(message.chat_id, response["content"])
 
 def respond_start(message):
     response = "*Здравствуйте!* Я бот созданный специально для 8-В! Напишите *руководство* чтобы узнать команды."
@@ -262,6 +242,17 @@ def respond_help(message):
     bot.send_message(message.chat.id, response, parse_mode='Markdown')
 
 
+def stata(message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    user_nickname = message.from_user.username if message.from_user.username else user_id
+    cursor.execute('SELECT upgrade_name FROM user_upgrades WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    results = cursor.fetchall()
+    bought_items = ', '.join([item[0] for item in results]) if results else 'Нет купленных товаров'
+    balance = round(get_balance(user_id, chat_id))
+    bot.send_message(chat_id, f'*Статистика пользователя @{user_nickname}:*\n'
+                              f'_Баланс:_ *{balance}*\n'
+                              f'_Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
 def respond_ship(message):
     try:
         command_parts = message.text.split(maxsplit=2)
@@ -342,6 +333,8 @@ def respond_biology(message):
         otvet = "*Будьте осторожны! Елена Николаевна рассердится!* 😱"
     elif ocenka == 2:
         otvet = "*Ты Миша? Без комментариев...* 🙁"
+    bot.send_dice(message.chat.id, "🎲")
+    time.sleep(4)
     bot.send_message(message.chat.id, f"*Ваша следующая оценка по математике:* {ocenka}\n\n{otvet}",
                      parse_mode='Markdown')
 
@@ -486,8 +479,7 @@ def do_job(user_id, chat_id):
             business_owner_id = owner[0]
             if business_owner_id != user_id:
                 update_balance(business_owner_id, chat_id, business_profit)
-                bot.send_message(business_owner_id,
-                                 f'💼 Вы получили {business_profit} монет за работу другого пользователя.')
+
     if job[0].lower() == "Проститутка":
         special_message = "💔 К сожалению, заказчику не понравился стриптиз, и он выдворил вас на улицу без оплаты. 🚪😔"
         bot.send_message(chat_id, special_message)
@@ -577,7 +569,7 @@ def work(message):
     balance = get_balance(user_id, chat_id)
 
     response = f"Вы выполнили работу '{job_name}' и заработали {int(payment)} монет! 💰\nВаш текущий баланс:" \
-               f" {int(balance)} монет."
+               f" {int(balance+payment)} монет."
     update_balance(user_id, chat_id, payment)
     update_balance(1548224823, chat_id, -payment)
     bot.send_message(chat_id, response)
@@ -589,7 +581,7 @@ def work(message):
         update_balance(user_id, chat_id, payment)
         update_balance(1548224823, chat_id, -payment)
         balance = get_balance(user_id, chat_id)
-        bot.send_message(chat_id, f'Налог 2% уплачен! 💸\nВаш новый баланс: {balance} 💰')
+        bot.send_message(chat_id, f'Налог 2% уплачен! 💸\nВаш новый баланс: {int(balance)} 💰')
 
 
 def check_balance(message):
@@ -654,7 +646,7 @@ def openshop(message):
 
     markup.add(item1, item2, item3, item4)
 
-    bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
+    bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
