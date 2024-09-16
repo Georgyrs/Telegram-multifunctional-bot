@@ -272,11 +272,12 @@ def stata(message):
     user_nickname = message.from_user.username if message.from_user.username else user_id
     cursor.execute('SELECT upgrade_name FROM user_upgrades WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     results = cursor.fetchall()
-    bought_items = ', '.join([item[0] for item in results]) if results else 'Нет купленных товаров'
+    bought_items = ', '.join([item[0] for item in results]) if results else '❌ Нет купленных товаров'
     balance = round(get_balance(user_id, chat_id))
-    bot.send_message(chat_id, f'*Статистика пользователя @{user_nickname}:*\n'
-                              f'_Баланс:_ *{balance}*\n'
-                              f'_Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
+    bot.send_message(chat_id, f'*💎 Статистика пользователя @{user_nickname}:*\n'
+                              f'💰 _Баланс:_ *{balance}*\n\n'
+                              f'🛒 _Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
+
 def respond_ship(message):
     try:
         command_parts = message.text.split(maxsplit=2)
@@ -507,7 +508,10 @@ def do_job(user_id, chat_id):
     if job[0] == "Проститутка":
         special_message = "💔 К сожалению, заказчику не понравился стриптиз, и он выдворил вас на улицу без оплаты. 🚪😔"
         bot.send_message(chat_id, special_message)
+
     return job[0], payment
+
+
 
 
 WORK_DELAY = 4 * 60 * 60
@@ -545,7 +549,8 @@ def work_command(message):
         if random.random() == 0.1:
             loss = 5000
             update_balance(user_id, chat_id, -loss)
-            update_balance(1548224823, chat_id, loss)
+            update_balance(1548224823, chat_id, 2500)
+            update_balance(5515972843, chat_id, 2500)
             bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
         else:
             update_balance(user_id, chat_id, payment)
@@ -555,7 +560,8 @@ def work_command(message):
         if random.random() < 0.2:
             loss = 5000
             update_balance(user_id, chat_id, -loss)
-            update_balance(1548224823, chat_id, loss)
+            update_balance(1548224823, chat_id, 2500)
+            update_balance(5515972843, chat_id, 2500)
             bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
         else:
             update_balance(user_id, chat_id, payment)
@@ -586,17 +592,17 @@ def work(message):
     chat_id = message.chat.id
     can_work_now, time_left = can_work(user_id, chat_id)
     if not can_work_now:
-        bot.reply_to(message, f"Вы уже работали недавно! Подождите еще {int(time_left // 60)} минут.")
+        bot.reply_to(message, f"🤡 Вы уже работали недавно!\n🕝 Подождите еще {int(time_left // 60)} минут.")
         return
 
     job_name, payment = do_job(user_id, chat_id)
     balance = get_balance(user_id, chat_id)
 
-    response = f"Вы выполнили работу '{job_name}' и заработали {int(payment)} монет! 💰\nВаш текущий баланс:" \
-               f" {int(balance+payment)} монет."
+    response = f"💎 <i>Вы выполнили работу</i> <b>{job_name}</b><i> и заработали </i><b>${int(payment)}</b>!\n💰<b>Ваш текущий баланс:</b>" \
+               f" <b>$</b>{int(balance+payment)}"
     update_balance(user_id, chat_id, payment)
     update_balance(1548224823, chat_id, -payment)
-    bot.send_message(chat_id, response)
+    bot.send_message(chat_id, response, parse_mode='html')
 
     if balance >= 2500:
         tax = int(balance * 0.02)
@@ -605,7 +611,35 @@ def work(message):
         update_balance(user_id, chat_id, payment)
         update_balance(1548224823, chat_id, -payment)
         balance = get_balance(user_id, chat_id)
-        bot.send_message(chat_id, f'Налог 2% уплачен! 💸\nВаш новый баланс: {int(balance)} 💰')
+        bot.send_message(chat_id, f'<b>Налог 2% уплачен!</b> 💸\n<i>Ваш новый баланс:</i> <b>{int(balance)}$</b>', parse_mode='html')
+
+    cursor.execute(
+        'SELECT * FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = "Майнинг"',
+        (user_id, chat_id))
+    if cursor.fetchone():
+        random_number = random.randint(1, 50)
+        pribyl = random.randint(-700, 5000)
+        if random_number == 1:
+            update_balance(user_id, chat_id, -25000)
+            bot.send_message(chat_id,
+                             f"🧯 У вас сгорела видеокарта!</b>\n\n<i>💰 Вы потратили</i> <b>$15000</b> <i>на покупку новой видеокарты</i>\n💢<i> а так же </i><b>$5000</b> <i>на покупку нового огнетушителя</i>\n🤫 <i>а так же дали взятки общей суммой </i><b>$5000</b> <i>соседям, чтобы они не настучали на вас в ЯнтарьЭнергоСбыт.</i>\n\n🔥 <b>Итого вы потеряли $25000</b>",
+                             parse_mode='html')
+        elif random_number in range(2, 11):
+            update_balance(user_id, chat_id, pribyl - 250)
+            bot.send_message(chat_id,
+                             f'🔍 <b>Бдительные граждане</b> <i>заметили, что вы майните, и вам пришлось</i> <b>купить им шоколадку за $250</b>\n\n💵 <i>Но за время пока ваш риг майнил,</i> <b>ваш баланс изменился на {pribyl}$</b> <i>(без учёта -250$)</i>',
+                             parse_mode='html')
+        elif random_number in range(12, 14):
+            update_balance(user_id, chat_id, pribyl - 2000)
+            bot.send_message(chat_id,
+                             f'⚡🫰<b> ЯнтарьЭнергоСбыт спалил вашу контору</b>, <i>и потребовал пожертвовать </i><b>2000</b><i> на ремонт штор в их отделении, чтобы вас не переводили на бизнес-тариф по электричеству.</i>\n\n<b>💵 Ваш баланс изменился на {pribyl - 2000}$ с учетом того, что вы до этого майнили.</b>',
+                             parse_mode='html')
+        elif random_number == 15:
+            update_balance(user_id, chat_id, pribyl - 1000)
+            bot.send_message(chat_id, f'<b>📉 Курс биткоина обвалился<b>, <i>ты потерял<i> <b>$1000</b>', parse_mode='html')
+        else:
+            bot.send_message(chat_id, f'<b>💸 Вы успешно изменили свой баланс на {pribyl}$ благодаря майнингу!</b>',
+                             parse_mode='html')
 
 
 def check_balance(message):
@@ -723,13 +757,13 @@ def steal_money(message):
     chat_id = message.chat.id
     can_steal_now, time_lefts = can_steal(user_id, chat_id)
     if not can_steal_now:
-        bot.reply_to(message, f"Вы уже воровали! Подождите еще {int(time_lefts // 60)} минут.")
+        bot.reply_to(message, f"🤡 Вы уже воровали!🕝 Подождите еще {int(time_lefts // 60)} минут.")
         return
 
     luck = random.randint(1, 2)
     command_parts = message.text.split(' ', 1)
     if len(command_parts) < 2:
-        bot.reply_to(message, "*Неверный формат команды.* Используйте: *ограбить @Evgeni*", parse_mode='Markdown')
+        bot.reply_to(message, "*❌ Неверный формат команды.\n* Используйте: *ограбить @Evgeni*", parse_mode='Markdown')
         return
 
     target_username = command_parts[1].replace('@', '').strip()
@@ -742,18 +776,18 @@ def steal_money(message):
                 break
 
         if target_user is None:
-            bot.reply_to(message, "*Пользователь не найден в этом чате.*", parse_mode='Markdown')
+            bot.reply_to(message, "*❌ Пользователь не найден в этом чате.*", parse_mode='Markdown')
             return
 
         target_id = target_user.id
         if user_id == target_id:
-            bot.reply_to(message, "*Нельзя своровать у самого себя!*", parse_mode='Markdown')
+            bot.reply_to(message, "*👺 Нельзя своровать у самого себя!*", parse_mode='Markdown')
             return
 
         target_balance = get_balance(target_id, chat_id)
         if target_balance < 500:
-            bot.reply_to(message, "*Только вы хотели обокрасть человека, как увидели его положение.\n"
-                                  "Ваше сердце растопилось и вы дали ему 400 монет*", parse_mode='Markdown')
+            bot.reply_to(message, "*💗 Только вы хотели обокрасть человека, как увидели его положение.\n\n"
+                                  "💘 Ваше сердце растопилось и вы дали ему 400 монет*", parse_mode='Markdown')
             update_balance(user_id, chat_id, -400)
             update_balance(target_id, chat_id, 400)
             return
@@ -777,12 +811,9 @@ def steal_money(message):
         else:
             update_balance(user_id, chat_id, -500)
             bot.send_message(chat_id,
-                             "Только вы сунули руку в карман,"
-                             " как офицер полиции обратил на вас внимание. Унося ноги вы выронили 500 монет")
+                             "👮 Только вы сунули руку в карман,"
+                             " как <b>офицер полиции обратил на вас внимание</b>.\n\n 👟 Унося ноги вы выронили <b>$500</b>", parse_mode='html')
     except Exception as e:
         bot.reply_to(message, f"*Произошла ошибка:* {e}", parse_mode='Markdown')
 
-try:
-    bot.polling(none_stop=True)
-except:
-    pass
+bot.polling(none_stop=True)

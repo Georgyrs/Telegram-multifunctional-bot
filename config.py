@@ -11,9 +11,9 @@ WIKIPEDIA_LANGUAGE = 'ru'
 
 
 MEDIA_PATHS = {
-    1: r'C:\Users\Asus\PycharmProjects\pythonProject6\static\photo_2024-08-23_16-25-17.jpg',
-    2: r'C:\Users\Asus\PycharmProjects\pythonProject6\static\IMG_2038.MP4',
-    3: r'C:\Users\Asus\PycharmProjects\pythonProject6\static\IMG_2041.MP4',
-    4: r'C:\Users\Asus\PycharmProjects\pythonProject6\static\photo_2024-08-23_16-25-24.jpg',
-    5: r'C:\Users\Asus\PycharmProjects\pythonProject6\static\photo_2024-08-23_16-25-27.jpg'
+    1: r'static\photo_2024-08-23_16-25-17.jpg',
+    2: r'static\IMG_2038.MP4',
+    3: r'static\IMG_2041.MP4',
+    4: r'static\photo_2024-08-23_16-25-24.jpg',
+    5: r'static\photo_2024-08-23_16-25-27.jpg'
 }
