@@ -284,14 +284,14 @@ def respond_ship(message):
     try:
         command_parts = message.text.split(maxsplit=2)
         if len(command_parts) < 3:
-            bot.reply_to(message, "*Неверный формат команды.* Используйте: *шип @1 @2*", parse_mode='Markdown')
+            bot.reply_to(message, "😫 *Неверный формат команды.* Используйте: *шип @1 @2*", parse_mode='Markdown')
             return
 
         user1_username = command_parts[1].replace('@', '').strip()
         user2_username = command_parts[2].replace('@', '').strip()
 
         if user1_username == user2_username:
-            bot.reply_to(message, "*Нельзя создать шип с самим собой!*", parse_mode='Markdown')
+            bot.reply_to(message, "🤡 *Нельзя создать шип с самим собой!*", parse_mode='Markdown')
             return
         user1_info = None
         user2_info = None
@@ -305,24 +305,24 @@ def respond_ship(message):
 
         if user1_info is None or user2_info is None:
             bot.reply_to(message,
-                         "*Один или оба пользователя не находятся в этом чате или их невозможно найти по никнейму.*",
+                         "*🤡 Один или оба пользователя не находятся в этом чате или их невозможно найти по никнейму.*",
                          parse_mode='Markdown')
             return
         add_ship(message.chat.id, user1_username, user2_username)
-        bot.reply_to(message, f"Шип между {user1_info.first_name} и {user2_info.first_name} создан!",
+        bot.reply_to(message, f"💘 Шип между {user1_info.first_name} и {user2_info.first_name} создан!",
                      parse_mode='Markdown')
 
     except Exception as e:
-        bot.reply_to(message, f"Произошла ошибка: {e}", parse_mode='Markdown')
+        bot.reply_to(message, f"❌ Произошла ошибка: {e}", parse_mode='Markdown')
 
 
 def respond_ships(message):
     ships = get_ships(message.chat.id)
     if not ships:
-        bot.reply_to(message, "<b>Пока нет созданных шипов.</b>", parse_mode='html')
+        bot.reply_to(message, "😢 <b>Пока нет созданных шипов.</b>", parse_mode='html')
         return
 
-    response = "<b>Список всех шипов:</b>\n"
+    response = "💗 <b>Список всех шипов:</b>\n"
     for user1, user2 in ships:
         response += f"• {user1} - {user2}\n"
 
@@ -343,11 +343,11 @@ def pugalka(message):
                 elif media_path.endswith('.MP4'):
                     bot.send_video(message.chat.id, media)
                 else:
-                    bot.reply_to(message, "*Неподдерживаемый формат файла.*", parse_mode='Markdown')
+                    bot.reply_to(message, "🤡 *Неподдерживаемый формат файла.*", parse_mode='Markdown')
         else:
-            bot.reply_to(message, "*Файл не найден.*", parse_mode='Markdown')
+            bot.reply_to(message, "❌ *Файл не найден.*", parse_mode='Markdown')
     else:
-        bot.reply_to(message, "*Лохам пугалки не отправляю!*", parse_mode='Markdown')
+        bot.reply_to(message, "🤡👟 *Лохам пугалки не отправляю!*", parse_mode='Markdown')
 
 
 def respond_biology(message):
@@ -362,7 +362,7 @@ def respond_biology(message):
         otvet = "*Ты Миша? Без комментариев...* 🙁"
     bot.send_dice(message.chat.id, "🎲")
     time.sleep(4)
-    bot.send_message(message.chat.id, f"*Ваша следующая оценка по математике:* {ocenka}\n\n{otvet}",
+    bot.send_message(message.chat.id, f"😍 *Ваша следующая оценка по математике:* {ocenka}\n\n{otvet}",
                      parse_mode='Markdown')
 
 
@@ -370,27 +370,27 @@ def dates(message):
     try:
         command_parts = message.text.split(maxsplit=2)
         if len(command_parts) < 3:
-            bot.reply_to(message, "*Неверный формат команды.* Используйте: *дата событие*", parse_mode='Markdown')
+            bot.reply_to(message, "❌ *Неверный формат команды.* Используйте: *дата событие*", parse_mode='Markdown')
             return
 
         date = command_parts[1].strip()
         event = command_parts[2].strip()
 
         add_event(message.chat.id, date, event)
-        bot.reply_to(message, f"*Событие {event} создано!*\n\n*Дата:* {date}", parse_mode='Markdown')
+        bot.reply_to(message, f"✅ *Событие {event} создано!*\n\n*Дата:* {date}", parse_mode='Markdown')
 
     except Exception as e:
-        bot.reply_to(message, f"*Произошла ошибка:* {e}", parse_mode='Markdown')
+        bot.reply_to(message, f"❌ *Произошла ошибка:* {e}", parse_mode='Markdown')
 
 
 def showdates(message):
     remove_expired_events(current_date)
     events = get_events(message.chat.id)
     if not events:
-        bot.reply_to(message, "*Пока нет важных событий.*", parse_mode='Markdown')
+        bot.reply_to(message, "😢 *Пока нет важных событий.*", parse_mode='Markdown')
         return
 
-    response = "*Список всех событий:*\n"
+    response = "✅ *Список всех событий:*\n"
     for date, event in events:
         response += f"• {date} - {event}\n"
 
@@ -415,11 +415,11 @@ def show_weather(message):
 
 def wiki_search(message):
     if not message.text.lower().startswith('списать'):
-        bot.reply_to(message, "*Используйте команду списать <запрос>*", parse_mode='Markdown')
+        bot.reply_to(message, "😍 *Используйте команду списать <запрос>*", parse_mode='Markdown')
         return
     command_parts = message.text.split(' ', 1)
     if len(command_parts) < 2:
-        bot.reply_to(message, "*Пожалуйста, укажите запрос для поиска.*", parse_mode='Markdown')
+        bot.reply_to(message, "🤡 *Пожалуйста, укажите запрос для поиска.*", parse_mode='Markdown')
         return
 
     word = command_parts[1].strip().lower()
@@ -436,9 +436,9 @@ def wiki_search(message):
             bot.send_message(message.chat.id, finalmess, parse_mode='html')
 
     except wikipedia.exceptions.PageError:
-        bot.send_message(message.chat.id, "Такой страницы не существует!")
+        bot.send_message(message.chat.id, "😢 Такой страницы не существует!")
     except Exception as e:
-        bot.send_message(message.chat.id, f"*Произошла ошибка:* {e}", parse_mode='Markdown')
+        bot.send_message(message.chat.id, f"❌ *Произошла ошибка:* {e}", parse_mode='Markdown')
 
 
 def rp_commands(message):
@@ -446,9 +446,6 @@ def rp_commands(message):
                      'Кракен щас забанит тебя за такое!🔨']
     random_choice = random.choice(random_phrase)
     command_parts = message.text.split(' ', 2)
-    if len(command_parts) < 3:
-        bot.send_message(message.chat.id, "Invalid command format. Use: /command <action> @username")
-        return
 
     action = command_parts[1].strip().lower()
     user = command_parts[2].strip()
@@ -620,7 +617,7 @@ def work(message):
         (user_id, chat_id))
     if cursor.fetchone():
         random_number = random.randint(1, 50)
-        pribyl = random.randint(-700, 5000)
+        pribyl = random.randint(-3000, 5000)
         if random_number == 1:
             update_balance(user_id, chat_id, -25000)
             bot.send_message(chat_id,
@@ -690,9 +687,9 @@ def buy_upgrade(user_id, chat_id, upgrade_name):
 
             response = f"✔️ <i>Вы успешно купили улучшение</i> <b>{upgrade_name}</b> <i>за</i> <b>{cost[0]}</b> <i>монет!</i>\n\n💵 <b>Ваш текущий баланс: {balance} монет.</b>"
         else:
-            response = "Недостаточно средств для покупки этого улучшения."
+            response = "❌ Недостаточно средств для покупки этого улучшения."
     else:
-        response = "Улучшение не найдено."
+        response = "🤔 Улучшение не найдено."
 
     return response
 
@@ -828,7 +825,7 @@ def blackjack(message):
     key = (chat_id, user_id)
     command_parts = message.text.split(' ', 1)
     if len(command_parts) < 2:
-        bot.reply_to(message, "*Пожалуйста, укажите ставку.*", parse_mode='Markdown')
+        bot.reply_to(message, "🤑 *Пожалуйста, укажите ставку.*", parse_mode='Markdown')
         return
 
     stavka = command_parts[1].strip().lower()
@@ -837,13 +834,13 @@ def blackjack(message):
     if stavka.isdigit():
         stavka = float(stavka)
     else:
-        bot.reply_to(message, "*Пожалуйста, укажите целое число!*", parse_mode='Markdown')
+        bot.reply_to(message, "💎 *Пожалуйста, укажите целое число!*", parse_mode='Markdown')
         return
     if stavka > 1000:
-        bot.reply_to(message, "*Размер ставки должен быть не более 1000!*", parse_mode='Markdown')
+        bot.reply_to(message, "🤡 *Размер ставки должен быть не более 1000!*", parse_mode='Markdown')
         return
     if stavka > balance_player:
-        bot.reply_to(message, "*Без денег не пускаем!*", parse_mode='Markdown')
+        bot.reply_to(message, "😏 *Без денег не пускаем!*", parse_mode='Markdown')
         return
 
     if key not in games:
@@ -869,35 +866,35 @@ def blackjack(message):
         dealer_hands = ', '.join([str(item) for item in game['dealer_hand']])
         player_hands = ', '.join([str(item) for item in game['player_hand']])
         player_score = calculate_score(game['player_hand'])
-        bot.send_message(chat_id, f'Твоя рука: {player_hands}, сумма: {player_score}')
-        bot.send_message(chat_id, f'Рука дилера: [{game["dealer_hand"][0]}, ?]')
+        bot.send_message(chat_id, f'🫵 Твоя рука: {player_hands}, сумма: {player_score}')
+        bot.send_message(chat_id, f'🃏 Рука дилера: [{game["dealer_hand"][0]}, ?]')
         return player_score
 
     player_score = show_hands()
 
     if player_score == 21:
         update_balance(user_id, chat_id, stavka * 2.5)
-        bot.send_message(chat_id, f"У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
+        bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
         games.pop(key)
         return
 
     def ask_for_card():
         markup = telebot.types.InlineKeyboardMarkup()
-        hit_button = telebot.types.InlineKeyboardButton("Взять карту", callback_data=f"hit_{user_id}")
-        stand_button = telebot.types.InlineKeyboardButton("Остановиться", callback_data=f"stand_{user_id}")
+        hit_button = telebot.types.InlineKeyboardButton("🎰 Взять карту", callback_data=f"hit_{user_id}")
+        stand_button = telebot.types.InlineKeyboardButton("🫸 Остановиться", callback_data=f"stand_{user_id}")
         markup.add(hit_button, stand_button)
-        bot.send_message(chat_id, "Хочешь взять ещё карту?", reply_markup=markup)
+        bot.send_message(chat_id, "😏 Хочешь взять ещё карту?", reply_markup=markup)
 
     ask_for_card()
 
     @bot.callback_query_handler(func=lambda call: call.data in [f"hit_{user_id}", f"stand_{user_id}"])
     def handle_move(call):
         if call.from_user.id != user_id:
-            bot.answer_callback_query(call.id, "Эта игра не для тебя!")
+            bot.answer_callback_query(call.id, "🤡 Эта игра не для тебя!")
             return
 
         if key not in games:
-            bot.send_message(chat_id, "Игра завершена!")
+            bot.send_message(chat_id, "🤑 Игра завершена!")
             return
 
         game = games[key]
@@ -905,17 +902,17 @@ def blackjack(message):
         if f"hit_{user_id}" in call.data:
             game['player_hand'].append(game['deck'].pop())
             player_score = calculate_score(game['player_hand'])
-            bot.edit_message_text(f'Твоя рука: {game["player_hand"]}, сумма: {player_score}', chat_id,
+            bot.edit_message_text(f'🫵 Твоя рука: {game["player_hand"]}, сумма: {player_score}', chat_id,
                                   call.message.message_id)
 
             if player_score > 21:
                 update_balance(user_id, chat_id, -stavka)
-                bot.send_message(chat_id, f"Ты проиграл!\nТвой баланс: {balance_player}")
+                bot.send_message(chat_id, f"😢 Ты проиграл!\nТвой баланс: {balance_player}")
                 games.pop(key)
                 return
             elif player_score == 21:
                 update_balance(user_id, chat_id, stavka * 2.5)
-                bot.send_message(chat_id, f"У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
+                bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
                 games.pop(key)
                 return
             ask_for_card()
@@ -927,17 +924,17 @@ def blackjack(message):
             game['dealer_hand'].append(game['deck'].pop())
         dealer_score = calculate_score(game['dealer_hand'])
 
-        bot.send_message(chat_id, f'Рука дилера: {game["dealer_hand"]}, сумма: {dealer_score}')
+        bot.send_message(chat_id, f'🃏 Рука дилера: {game["dealer_hand"]}, сумма: {dealer_score}')
         player_score = calculate_score(game['player_hand'])
 
         if dealer_score > 21 or player_score > dealer_score:
             update_balance(user_id, chat_id, stavka * 2)
-            bot.send_message(chat_id, f"Ты выиграл!\nТвой баланс: {balance_player+stavka}")
+            bot.send_message(chat_id, f"🍀 Ты выиграл!\nТвой баланс: {balance_player+stavka}")
         elif player_score < dealer_score:
             update_balance(user_id, chat_id, -stavka)
-            bot.send_message(chat_id, f"Дилер выиграл!\nТвой баланс: {balance_player-stavka}")
+            bot.send_message(chat_id, f"😢 Дилер выиграл!\nТвой баланс: {balance_player-stavka}")
         else:
-            bot.send_message(chat_id, "Ничья!")
+            bot.send_message(chat_id, "🤔 Ничья!")
 
         games.pop(key)
 
