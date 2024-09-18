@@ -941,4 +941,72 @@ def blackjack(message):
 
         games.pop(key)
 
+def classic_roulette(message):
+colors = {'красный': '🔴', 'черный': '⬛', 'зеленый': '🟩'}
+chat_id = message.chat.id
+user_id = message.from_user.id
+command_parts = message.text.split(' ', 2)
+
+if len(command_parts) < 3:
+    bot.reply_to(message, "🎰 *Используйте:* _рулетка <ставка> <красный, черный, зеленый>_", parse_mode='Markdown')
+    return
+
+stavka = command_parts[1].strip().lower()
+chosen_color = command_parts[2].strip().lower()
+balance_player = get_balance(user_id, chat_id)
+
+if not stavka.isdigit():
+    bot.reply_to(message, "⚠️ _Пожалуйста, укажите целое число!_", parse_mode='Markdown')
+    return
+
+stavka = float(stavka)
+
+if stavka < 10:
+    bot.reply_to(message, "⚠️ _Минимальная ставка — **10**!_", parse_mode='Markdown')
+    return
+
+if stavka > 1000:
+    bot.reply_to(message, "⚠️ _Максимальная ставка — **1000**!_", parse_mode='Markdown')
+    return
+
+if stavka > balance_player:
+    bot.reply_to(message, "❌ _Без денег не пускаем!_", parse_mode='Markdown')
+    return
+
+if chosen_color not in colors:
+    bot.reply_to(message, "⚠️ _Выберите цвет: **красный**, **черный**, **зеленый**!_", parse_mode='Markdown')
+    return
+
+random_color = random.choice(list(colors.keys()))
+
+prev_message = None
+
+for _ in range(3):
+    for color_emoji in colors.values():
+
+        if prev_message:
+            bot.delete_message(chat_id, prev_message.message_id)
+
+        sent_message = bot.send_message(chat_id, color_emoji)
+
+        prev_message = sent_message
+
+        time.sleep(1)
+
+
+if prev_message:
+    bot.delete_message(chat_id, prev_message.message_id)
+
+bot.send_message(chat_id, f"{colors[random_color]}")
+
+if random_color == chosen_color:
+    winnings = stavka * (14 if random_color == 'зеленый' else 2)
+    update_balance(user_id, chat_id, +winnings)
+    bot.send_message(chat_id, f"🎉 _Поздравляем!_ Выпал {colors[random_color]} \n**Ваш выигрыш: {winnings} 💰**",
+                     parse_mode='Markdown')
+else:
+    update_balance(user_id, chat_id, -stavka)
+    bot.send_message(chat_id, f"😞 _Увы! Выпал {colors[random_color]}_\n**Вы проиграли: {stavka} 💸**",
+                     parse_mode='Markdown')
+
 bot.polling(none_stop=True)
