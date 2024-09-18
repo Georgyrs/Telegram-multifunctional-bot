@@ -227,6 +227,8 @@ def handle_all_messages(message):
         work_command(message)
     elif text.startswith('азарт'):
         blackjack(message)
+    elif text.startswith('рулетка'):
+        classic_roulette(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -518,19 +520,40 @@ def do_job(user_id, chat_id):
 
 WORK_DELAY = 4 * 60 * 60
 
-last_work_time = {}
+
+def ensure_last_work_time_column_exists():
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if 'last_work_time' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN last_work_time REAL')
+        conn.commit()
 
 
 def work_command(message):
     chat_id = message.chat.id
     user_id = message.from_user.id
+
+    ensure_last_work_time_column_exists()
+
     current_time = time.time()
-    if user_id in last_work_time and current_time - last_work_time[user_id] < WORK_DELAY:
-        remaining_time = WORK_DELAY - (current_time - last_work_time[user_id])
+
+    cursor.execute('SELECT last_work_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+
+    if result:
+        last_work_time = result[0]
+    else:
+        last_work_time = None
+
+    if last_work_time and current_time - last_work_time < WORK_DELAY:
+        remaining_time = WORK_DELAY - (current_time - last_work_time)
         bot.send_message(chat_id, f"🦣 Вы сможете снова скамить через {int(remaining_time // 60)} минут.")
         return
 
-    last_work_time[user_id] = current_time
+    cursor.execute('UPDATE users SET last_work_time = ? WHERE user_id = ? AND chat_id = ?',
+                   (current_time, user_id, chat_id))
+    conn.commit()
 
     job_name = "🌈 Скамерсант"
     min_payment = 400
@@ -942,71 +965,72 @@ def blackjack(message):
         games.pop(key)
 
 def classic_roulette(message):
-colors = {'красный': '🔴', 'черный': '⬛', 'зеленый': '🟩'}
-chat_id = message.chat.id
-user_id = message.from_user.id
-command_parts = message.text.split(' ', 2)
+    colors = {'красный': '🔴', 'черный': '⬛️', 'зеленый': '🟩'}
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    command_parts = message.text.split(' ', 2)
 
-if len(command_parts) < 3:
-    bot.reply_to(message, "🎰 *Используйте:* _рулетка <ставка> <красный, черный, зеленый>_", parse_mode='Markdown')
-    return
+    if len(command_parts) < 3:
+        bot.reply_to(message, "🎰 *Используйте:* _рулетка <ставка> <красный, черный, зеленый>_", parse_mode='Markdown')
+        return
 
-stavka = command_parts[1].strip().lower()
-chosen_color = command_parts[2].strip().lower()
-balance_player = get_balance(user_id, chat_id)
+    stavka = command_parts[1].strip().lower()
+    chosen_color = command_parts[2].strip().lower()
+    balance_player = get_balance(user_id, chat_id)
 
-if not stavka.isdigit():
-    bot.reply_to(message, "⚠️ _Пожалуйста, укажите целое число!_", parse_mode='Markdown')
-    return
+    if not stavka.isdigit():
+        bot.reply_to(message, "⚠️ _Пожалуйста, укажите целое число!_", parse_mode='Markdown')
+        return
 
-stavka = float(stavka)
+    stavka = float(stavka)
 
-if stavka < 10:
-    bot.reply_to(message, "⚠️ _Минимальная ставка — **10**!_", parse_mode='Markdown')
-    return
+    if stavka < 10:
+        bot.reply_to(message, "⚠️ _Минимальная ставка — 10!_", parse_mode='Markdown')
+        return
 
-if stavka > 1000:
-    bot.reply_to(message, "⚠️ _Максимальная ставка — **1000**!_", parse_mode='Markdown')
-    return
+    if stavka > 1000:
+        bot.reply_to(message, "⚠️ _Максимальная ставка — 1000!_", parse_mode='Markdown')
+        return
 
-if stavka > balance_player:
-    bot.reply_to(message, "❌ _Без денег не пускаем!_", parse_mode='Markdown')
-    return
+    if stavka > balance_player:
+        bot.reply_to(message, "❌ _Без денег не пускаем!_", parse_mode='Markdown')
+        return
 
-if chosen_color not in colors:
-    bot.reply_to(message, "⚠️ _Выберите цвет: **красный**, **черный**, **зеленый**!_", parse_mode='Markdown')
-    return
+    if chosen_color not in colors:
+        bot.reply_to(message, "⚠️ _Выберите цвет: красный, черный, зеленый!_", parse_mode='Markdown')
+        return
 
-random_color = random.choice(list(colors.keys()))
+    random_color = random.choice(list(colors.keys()))
 
-prev_message = None
+    prev_message = None
 
-for _ in range(3):
-    for color_emoji in colors.values():
+    for _ in range(3):
+        for color_emoji in colors.values():
 
-        if prev_message:
-            bot.delete_message(chat_id, prev_message.message_id)
+            if prev_message:
+                bot.delete_message(chat_id, prev_message.message_id)
 
-        sent_message = bot.send_message(chat_id, color_emoji)
+            sent_message = bot.send_message(chat_id, color_emoji)
 
-        prev_message = sent_message
+            prev_message = sent_message
 
-        time.sleep(1)
+            time.sleep(1)
 
 
-if prev_message:
-    bot.delete_message(chat_id, prev_message.message_id)
+    if prev_message:
+        bot.delete_message(chat_id, prev_message.message_id)
 
-bot.send_message(chat_id, f"{colors[random_color]}")
+    bot.send_message(chat_id, f"{colors[random_color]}")
 
-if random_color == chosen_color:
-    winnings = stavka * (14 if random_color == 'зеленый' else 2)
-    update_balance(user_id, chat_id, +winnings)
-    bot.send_message(chat_id, f"🎉 _Поздравляем!_ Выпал {colors[random_color]} \n**Ваш выигрыш: {winnings} 💰**",
-                     parse_mode='Markdown')
-else:
-    update_balance(user_id, chat_id, -stavka)
-    bot.send_message(chat_id, f"😞 _Увы! Выпал {colors[random_color]}_\n**Вы проиграли: {stavka} 💸**",
-                     parse_mode='Markdown')
+    if random_color == chosen_color:
+        winnings = stavka * (14 if random_color == 'зеленый' else 2)
+        update_balance(user_id, chat_id, +winnings)
+        bot.send_message(chat_id, f"🎉 _Поздравляем!_ Выпал {colors[random_color]} \n**Ваш выигрыш: {winnings} 💰",
+                         parse_mode='Markdown')
+    else:
+        update_balance(user_id, chat_id, -stavka)
+        bot.send_message(chat_id, f"😞 _Увы! Выпал {colors[random_color]}_\n**Вы проиграли: {stavka} 💸",
+                         parse_mode='Markdown')
 
 bot.polling(none_stop=True)
+print('Бот запущен')
