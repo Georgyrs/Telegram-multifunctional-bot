@@ -225,6 +225,8 @@ def handle_all_messages(message):
         steal_money(message)
     elif text == 'воркать':
         work_command(message)
+    elif text.startswith('азарт'):
+        blackjack(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -815,5 +817,128 @@ def steal_money(message):
                              " как <b>офицер полиции обратил на вас внимание</b>.\n\n 👟 Унося ноги вы выронили <b>$500</b>", parse_mode='html')
     except Exception as e:
         bot.reply_to(message, f"*Произошла ошибка:* {e}", parse_mode='Markdown')
+
+
+games = {}
+
+
+def blackjack(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+    key = (chat_id, user_id)
+    command_parts = message.text.split(' ', 1)
+    if len(command_parts) < 2:
+        bot.reply_to(message, "*Пожалуйста, укажите ставку.*", parse_mode='Markdown')
+        return
+
+    stavka = command_parts[1].strip().lower()
+    balance_player = get_balance(user_id, chat_id)
+
+    if stavka.isdigit():
+        stavka = float(stavka)
+    else:
+        bot.reply_to(message, "*Пожалуйста, укажите целое число!*", parse_mode='Markdown')
+        return
+    if stavka > 1000:
+        bot.reply_to(message, "*Размер ставки должен быть не более 1000!*", parse_mode='Markdown')
+        return
+    if stavka > balance_player:
+        bot.reply_to(message, "*Без денег не пускаем!*", parse_mode='Markdown')
+        return
+
+    if key not in games:
+        deck = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11] * 4
+        random.shuffle(deck)
+        games[key] = {
+            'deck': deck,
+            'player_hand': [deck.pop(), deck.pop()],
+            'dealer_hand': [deck.pop(), deck.pop()]
+        }
+
+    def calculate_score(hand):
+        score = sum(hand)
+        if score > 21 and 11 in hand:
+            hand.remove(11)
+            hand.append(1)
+            score = sum(hand)
+        return score
+
+    game = games[key]
+
+    def show_hands():
+        dealer_hands = ', '.join([str(item) for item in game['dealer_hand']])
+        player_hands = ', '.join([str(item) for item in game['player_hand']])
+        player_score = calculate_score(game['player_hand'])
+        bot.send_message(chat_id, f'Твоя рука: {player_hands}, сумма: {player_score}')
+        bot.send_message(chat_id, f'Рука дилера: [{game["dealer_hand"][0]}, ?]')
+        return player_score
+
+    player_score = show_hands()
+
+    if player_score == 21:
+        update_balance(user_id, chat_id, stavka * 2.5)
+        bot.send_message(chat_id, f"У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
+        games.pop(key)
+        return
+
+    def ask_for_card():
+        markup = telebot.types.InlineKeyboardMarkup()
+        hit_button = telebot.types.InlineKeyboardButton("Взять карту", callback_data=f"hit_{user_id}")
+        stand_button = telebot.types.InlineKeyboardButton("Остановиться", callback_data=f"stand_{user_id}")
+        markup.add(hit_button, stand_button)
+        bot.send_message(chat_id, "Хочешь взять ещё карту?", reply_markup=markup)
+
+    ask_for_card()
+
+    @bot.callback_query_handler(func=lambda call: call.data in [f"hit_{user_id}", f"stand_{user_id}"])
+    def handle_move(call):
+        if call.from_user.id != user_id:
+            bot.answer_callback_query(call.id, "Эта игра не для тебя!")
+            return
+
+        if key not in games:
+            bot.send_message(chat_id, "Игра завершена!")
+            return
+
+        game = games[key]
+
+        if f"hit_{user_id}" in call.data:
+            game['player_hand'].append(game['deck'].pop())
+            player_score = calculate_score(game['player_hand'])
+            bot.edit_message_text(f'Твоя рука: {game["player_hand"]}, сумма: {player_score}', chat_id,
+                                  call.message.message_id)
+
+            if player_score > 21:
+                update_balance(user_id, chat_id, -stavka)
+                bot.send_message(chat_id, f"Ты проиграл!\nТвой баланс: {balance_player}")
+                games.pop(key)
+                return
+            elif player_score == 21:
+                update_balance(user_id, chat_id, stavka * 2.5)
+                bot.send_message(chat_id, f"У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
+                games.pop(key)
+                return
+            ask_for_card()
+        else:
+            dealer_turn()
+
+    def dealer_turn():
+        while calculate_score(game['dealer_hand']) < 17:
+            game['dealer_hand'].append(game['deck'].pop())
+        dealer_score = calculate_score(game['dealer_hand'])
+
+        bot.send_message(chat_id, f'Рука дилера: {game["dealer_hand"]}, сумма: {dealer_score}')
+        player_score = calculate_score(game['player_hand'])
+
+        if dealer_score > 21 or player_score > dealer_score:
+            update_balance(user_id, chat_id, stavka * 2)
+            bot.send_message(chat_id, f"Ты выиграл!\nТвой баланс: {balance_player+stavka}")
+        elif player_score < dealer_score:
+            update_balance(user_id, chat_id, -stavka)
+            bot.send_message(chat_id, f"Дилер выиграл!\nТвой баланс: {balance_player-stavka}")
+        else:
+            bot.send_message(chat_id, "Ничья!")
+
+        games.pop(key)
 
 bot.polling(none_stop=True)
