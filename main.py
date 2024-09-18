@@ -756,14 +756,14 @@ def callback_buy_item(call):
     else:
         response = "Неизвестный товар."
 
-    if response == 'Недостаточно средств для покупки этого улучшения.':
+    if response == '🤡 Недостаточно средств для покупки этого улучшения.':
         bot.answer_callback_query(call.id, response, show_alert=True)
     elif response == 'Вы уже купили это улучшение.':
         bot.answer_callback_query(call.id, response, show_alert=True)
     else:
         bot.send_message(chat_id, response, parse_mode='html')
 
-
+buy_upgrade(6628758852, -1002108574558, 'Ускоритель заработка')
 def can_steal(user_id, chat_id):
     key = (user_id, chat_id)
     last_steal_time = cooldowns_steal.get(key)
@@ -908,7 +908,7 @@ def blackjack(message):
         hit_button = telebot.types.InlineKeyboardButton("♠️ Взять карту", callback_data=f"hit_{user_id}")
         stand_button = telebot.types.InlineKeyboardButton("🫷 Остановиться", callback_data=f"stand_{user_id}")
         markup.add(hit_button, stand_button)
-        bot.send_message(chat_id, "Хочешь взять ещё карту?", reply_markup=markup)
+        bot.send_message(chat_id, "🤑 Хочешь взять ещё карту?", reply_markup=markup)
 
     ask_for_card()
 
