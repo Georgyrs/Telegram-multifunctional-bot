@@ -229,6 +229,10 @@ def handle_all_messages(message):
         blackjack(message)
     elif text.startswith('рулетка'):
         classic_roulette(message)
+    elif text.startswith('сигнат кто'):
+        signat_who(message)
+    elif text.startswith('перевести'):
+        transfer_money(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -283,6 +287,7 @@ def stata(message):
     bot.send_message(chat_id, f'*💎 Статистика пользователя @{user_nickname}:*\n'
                               f'💰 _Баланс:_ *{balance}*\n\n'
                               f'🛒 _Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
+
 
 def respond_ship(message):
     try:
@@ -451,6 +456,11 @@ def rp_commands(message):
     random_choice = random.choice(random_phrase)
     command_parts = message.text.split(' ', 2)
 
+    if len(command_parts) < 3:
+        bot.send_message(message.chat.id, "Команда введена неправильно! Пожалуйста, используйте формат"
+                                          ": /команда действие пользователь.")
+        return
+
     action = command_parts[1].strip().lower()
     user = command_parts[2].strip()
     usercall = message.from_user
@@ -461,6 +471,7 @@ def rp_commands(message):
         action_modified = action[:-2] + 'л'
         response1 = f"@{usercalled} {action_modified} {user}! \n\n{random_choice}"
         bot.send_message(message.chat.id, response1)
+
 
 def randomfact(message):
     random_fact = random.choice(news_list)
@@ -515,8 +526,6 @@ def do_job(user_id, chat_id):
     return job[0], payment
 
 
-
-
 WORK_DELAY = 4 * 60 * 60
 
 
@@ -554,7 +563,6 @@ def work_command(message):
                    (current_time, user_id, chat_id))
     conn.commit()
 
-    job_name = "🌈 Скамерсант"
     min_payment = 400
     max_payment = 750
 
@@ -575,10 +583,12 @@ def work_command(message):
             update_balance(user_id, chat_id, -loss)
             update_balance(1548224823, chat_id, 2500)
             update_balance(5515972843, chat_id, 2500)
-            bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
+            bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i>"
+                                      f" размером <b>5000</b>", parse_mode='html')
         else:
             update_balance(user_id, chat_id, payment)
-            bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили</i> мамонта", parse_mode='html')
+            bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили"
+                                      f"</i> мамонта", parse_mode='html')
 
     else:
         if random.random() < 0.2:
@@ -586,11 +596,12 @@ def work_command(message):
             update_balance(user_id, chat_id, -loss)
             update_balance(1548224823, chat_id, 2500)
             update_balance(5515972843, chat_id, 2500)
-            bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
+            bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлос"
+                                      f"ь дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
         else:
             update_balance(user_id, chat_id, payment)
-            bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили</i> мамонта", parse_mode='html')
-
+            bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили<"
+                                      f"/i> мамонта", parse_mode='html')
 
 
 cooldowns = {}
@@ -622,7 +633,8 @@ def work(message):
     job_name, payment = do_job(user_id, chat_id)
     balance = get_balance(user_id, chat_id)
 
-    response = f"💎 <i>Вы выполнили работу</i> <b>{job_name}</b><i> и заработали </i><b>${int(payment)}</b>!\n💰<b>Ваш текущий баланс:</b>" \
+    response = f"💎 <i>Вы выполнили работу</i> <b>{job_name}</b><i> и заработали </i><b>${int(payment)}" \
+               f"</b>!\n💰<b>Ваш текущий баланс:</b>" \
                f" <b>$</b>{int(balance+payment)}"
     update_balance(user_id, chat_id, payment)
     update_balance(1548224823, chat_id, -payment)
@@ -635,7 +647,8 @@ def work(message):
         update_balance(user_id, chat_id, payment)
         update_balance(1548224823, chat_id, -payment)
         balance = get_balance(user_id, chat_id)
-        bot.send_message(chat_id, f'<b>Налог 2% уплачен!</b> 💸\n<i>Ваш новый баланс:</i> <b>{int(balance)}$</b>', parse_mode='html')
+        bot.send_message(chat_id, f'<b>Налог 2% уплачен!</b> 💸\n<i>Ваш новый баланс:</i>'
+                                  f' <b>{int(balance)}$</b>', parse_mode='html')
 
     cursor.execute(
         'SELECT * FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = "Майнинг"',
@@ -646,12 +659,19 @@ def work(message):
         if random_number == 1:
             update_balance(user_id, chat_id, -25000)
             bot.send_message(chat_id,
-                             f"🧯 У вас сгорела видеокарта!</b>\n\n<i>💰 Вы потратили</i> <b>$15000</b> <i>на покупку новой видеокарты</i>\n💢<i> а так же </i><b>$5000</b> <i>на покупку нового огнетушителя</i>\n🤫 <i>а так же дали взятки общей суммой </i><b>$5000</b> <i>соседям, чтобы они не настучали на вас в ЯнтарьЭнергоСбыт.</i>\n\n🔥 <b>Итого вы потеряли $25000</b>",
+                             f"🧯 У вас сгорела видеокарта!</b>\n\n<i>💰 Вы потратили<"
+                             f"/i> <b>$15000</b> <i>на покупку новой видеокарты</i>\n💢<i>"
+                             f" а так же </i><b>$5000</b> <i>на покупку нового огнетушителя</i>"
+                             f"\n🤫 <i>а так же дали взятки общей суммой </i><b>$5000</b> <i>соседям,"
+                             f" чтобы они не настучали на вас в ЯнтарьЭнер"
+                             f"гоСбыт.</i>\n\n🔥 <b>Итого вы потеряли $25000</b>",
                              parse_mode='html')
         elif random_number in range(2, 11):
             update_balance(user_id, chat_id, pribyl - 250)
             bot.send_message(chat_id,
-                             f'🔍 <b>Бдительные граждане</b> <i>заметили, что вы майните, и вам пришлось</i> <b>купить им шоколадку за $250</b>\n\n💵 <i>Но за время пока ваш риг майнил,</i> <b>ваш баланс изменился на {pribyl}$</b> <i>(без учёта -250$)</i>',
+                             f'🔍 <b>Бдительные граждане</b> <i>заметили, что вы майните'
+                             f', и вам пришлось</i> <b>купить им шоколадку за $250</b>\n\n'
+                             f'💵 <i>Но за время пока ваш риг майнил,</i> <b>ваш баланс изменился на {pribyl}$</b> <i>(без учёта -250$)</i>',
                              parse_mode='html')
         elif random_number in range(12, 14):
             update_balance(user_id, chat_id, pribyl - 2000)
@@ -763,7 +783,10 @@ def callback_buy_item(call):
     else:
         bot.send_message(chat_id, response, parse_mode='html')
 
-buy_upgrade(6628758852, -1002108574558, 'Ускоритель заработка')
+
+
+
+
 def can_steal(user_id, chat_id):
     key = (user_id, chat_id)
     last_steal_time = cooldowns_steal.get(key)
@@ -855,14 +878,13 @@ def blackjack(message):
 
     stavka = command_parts[1].strip().lower()
     balance_player = get_balance(user_id, chat_id)
-
     if stavka.isdigit():
         stavka = float(stavka)
     else:
         bot.reply_to(message, "*😏 Пожалуйста, укажите целое число!*", parse_mode='Markdown')
         return
-    if stavka > 1000:
-        bot.reply_to(message, "*🤔 Размер ставки должен быть не более 1000!*", parse_mode='Markdown')
+    if stavka > 5000:
+        bot.reply_to(message, "*🤔 Размер ставки должен быть не более 5000!*", parse_mode='Markdown')
         return
     if stavka > balance_player:
         bot.reply_to(message, "*🤡 Без денег не пускаем!*", parse_mode='Markdown')
@@ -880,26 +902,25 @@ def blackjack(message):
     def calculate_score(hand):
         score = sum(hand)
         if score > 21 and 11 in hand:
-            hand.remove(11)
-            hand.append(1)
+            hand[hand.index(11)] = 1
             score = sum(hand)
         return score
 
     game = games[key]
 
     def show_hands():
-        dealer_hands = ', '.join([str(item) for item in game['dealer_hand']])
-        player_hands = ', '.join([str(item) for item in game['player_hand']])
+        player_hands = ', '.join(map(str, game['player_hand']))
+        dealer_hands = ', '.join(map(str, game['dealer_hand'][:1])) + ', ?'
         player_score = calculate_score(game['player_hand'])
         bot.send_message(chat_id, f'💎 Твоя рука: {player_hands}, сумма: {player_score}')
-        bot.send_message(chat_id, f'🃏 Рука дилера: [{game["dealer_hand"][0]}, ?]')
+        bot.send_message(chat_id, f'🃏 Рука дилера: {dealer_hands}')
         return player_score
 
     player_score = show_hands()
 
     if player_score == 21:
-        update_balance(user_id, chat_id, stavka * 2.5)
-        bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
+        update_balance(user_id, chat_id, stavka * 1.5)
+        bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\nТвой выигрыш: {stavka * 2.5}")
         games.pop(key)
         return
 
@@ -932,12 +953,12 @@ def blackjack(message):
 
             if player_score > 21:
                 update_balance(user_id, chat_id, -stavka)
-                bot.send_message(chat_id, f"😢 Ты проиграл!\nТвой баланс: {balance_player}")
+                bot.send_message(chat_id, f"😢 Ты проиграл!\nТвой баланс: {int(balance_player - stavka)}")
                 games.pop(key)
                 return
             elif player_score == 21:
                 update_balance(user_id, chat_id, stavka * 2.5)
-                bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\n Твой выигрыш: {stavka * 2.5}")
+                bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\n Твой выигрыш: {stavka * 1.5}")
                 games.pop(key)
                 return
             ask_for_card()
@@ -945,23 +966,28 @@ def blackjack(message):
             dealer_turn()
 
     def dealer_turn():
-        while calculate_score(game['dealer_hand']) < 17:
+        while calculate_score(game['dealer_hand']) < 17 or (
+                calculate_score(game['dealer_hand']) == 17 and 11 in game['dealer_hand']):
             game['dealer_hand'].append(game['deck'].pop())
-        dealer_score = calculate_score(game['dealer_hand'])
 
-        bot.send_message(chat_id, f'🃏 Рука дилера: {game["dealer_hand"]}, сумма: {dealer_score}')
+        dealer_score = calculate_score(game['dealer_hand'])
         player_score = calculate_score(game['player_hand'])
 
+        bot.send_message(chat_id, f'🃏 Рука дилера: {game["dealer_hand"]}, сумма: {dealer_score}')
+
         if dealer_score > 21 or player_score > dealer_score:
-            update_balance(user_id, chat_id, stavka * 2)
-            bot.send_message(chat_id, f"💎 Ты выиграл!\nТвой баланс: {balance_player+stavka}")
+            update_balance(user_id, chat_id, stavka)
+            bot.send_message(chat_id, f"💎 Ты выиграл!\nТвой баланс: {int(balance_player + stavka)}")
+
         elif player_score < dealer_score:
             update_balance(user_id, chat_id, -stavka)
-            bot.send_message(chat_id, f"😢 Дилер выиграл!\nТвой баланс: {balance_player-stavka}")
+            bot.send_message(chat_id, f"😢 Дилер выиграл!\nТвой баланс: {int(balance_player - stavka)}")
+
         else:
             bot.send_message(chat_id, "🤔 Ничья!")
 
         games.pop(key)
+
 
 def classic_roulette(message):
     colors = {'красный': '🔴', 'черный': '⬛️', 'зеленый': '🟩'}
@@ -987,8 +1013,8 @@ def classic_roulette(message):
         bot.reply_to(message, "⚠️ _Минимальная ставка — 10!_", parse_mode='Markdown')
         return
 
-    if stavka > 1000:
-        bot.reply_to(message, "⚠️ _Максимальная ставка — 1000!_", parse_mode='Markdown')
+    if stavka > 5000:
+        bot.reply_to(message, "⚠️ _Максимальная ставка — 5000!_", parse_mode='Markdown')
         return
 
     if stavka > balance_player:
@@ -1015,7 +1041,6 @@ def classic_roulette(message):
 
             time.sleep(1)
 
-
     if prev_message:
         bot.delete_message(chat_id, prev_message.message_id)
 
@@ -1031,5 +1056,108 @@ def classic_roulette(message):
         bot.send_message(chat_id, f"😞 _Увы! Выпал {colors[random_color]}_\n**Вы проиграли: {stavka} 💸",
                          parse_mode='Markdown')
 
+
+def signat_who(message):
+    admins = bot.get_chat_administrators(message.chat.id)
+    random_admin = random.choice(admins).user
+
+    phrases = [
+        "Звезды подсказывают, что",
+        "Я уверен, что",
+        "Как ни странно, но",
+        "Все признаки говорят о том, что",
+        "Мне кажется, что",
+        "Предчувствую, что",
+        "Может быть,",
+        "Вероятно, ",
+    ]
+
+    emojis = ["✨", "🔮", "🤔", "😎", "👀", "🌟", "🎯", "🤷‍♂️"]
+
+    random_phrase = random.choice(phrases)
+    random_emoji = random.choice(emojis)
+
+    response_text = f"{random_phrase} @{random_admin.username} {message.text[10:]} {random_emoji}"
+
+    bot.send_message(message.chat.id, response_text)
+
+
+TRANSFER_DELAY = 60 * 60
+
+
+def ensure_last_transfer_time_column_exists():
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if 'last_transfer_time' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN last_transfer_time REAL')
+        conn.commit()
+
+
+def transfer_money(message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+
+    ensure_last_transfer_time_column_exists()
+
+    current_time = time.time()
+
+    cursor.execute('SELECT last_transfer_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+
+    if result:
+        last_transfer_time = result[0]
+    else:
+        last_transfer_time = None
+
+    if last_transfer_time and current_time - last_transfer_time < TRANSFER_DELAY:
+        remaining_time = TRANSFER_DELAY - (current_time - last_transfer_time)
+        bot.send_message(chat_id, f"❌ Вы сможете снова перевести деньги через {int(remaining_time // 60)} минут.")
+        return
+
+    command_parts = message.text.split(' ', 2)
+
+    if len(command_parts) < 3:
+        bot.reply_to(message, "❌ Неверный формат команды. Используйте: перевести @пользователь количество")
+        return
+
+    to_username = command_parts[1].replace('@', '').strip()
+    amount = command_parts[2].strip()
+
+    if not amount.isdigit():
+        bot.reply_to(message, "❌ Пожалуйста, введите корректную сумму.")
+        return
+
+    amount = int(amount)
+
+    if amount <= 0:
+        bot.reply_to(message, "❌ Сумма перевода должна быть больше 0.")
+        return
+
+    to_user = None
+    for admin in bot.get_chat_administrators(chat_id):
+        if admin.user.username == to_username:
+            to_user = admin.user
+            break
+
+    if to_user is None:
+        bot.reply_to(message, f"❌ Пользователь с юзернеймом @{to_username} не найден.")
+        return
+
+    to_user_id = to_user.id
+
+    balance_sender = get_balance(user_id, chat_id)
+    if balance_sender < amount:
+        bot.reply_to(message, "❌ Недостаточно средств для перевода.")
+        return
+
+    update_balance(user_id, chat_id, -amount)
+    update_balance(to_user_id, chat_id, amount)
+
+    cursor.execute('UPDATE users SET last_transfer_time = ? WHERE user_id = ? AND chat_id = ?',
+                   (current_time, user_id, chat_id))
+    conn.commit()
+
+    bot.send_message(chat_id,
+                     f"✔️ @{message.from_user.username} перевел(а) {amount} монет пользователю @{to_username}.")
 bot.polling(none_stop=True)
-print('Бот запущен')
