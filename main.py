@@ -90,6 +90,9 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS user_upgrades (
                     upgrade_name TEXT,
                     PRIMARY KEY (user_id, chat_id, upgrade_name)
                 )''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS government (
+                    governbalance INTEGER
+                )''')
 conn.commit()
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS message_stats (
@@ -225,14 +228,14 @@ def handle_all_messages(message):
         steal_money(message)
     elif text == 'воркать':
         work_command(message)
-    elif text.startswith('азарт'):
-        blackjack(message)
     elif text.startswith('рулетка'):
         classic_roulette(message)
     elif text.startswith('сигнат кто'):
         signat_who(message)
     elif text.startswith('перевести'):
         transfer_money(message)
+    elif text.startswith('казна'):
+        government_addmoney(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -507,8 +510,6 @@ def do_job(user_id, chat_id):
     if cursor.fetchone():
         payment = int(payment * 1.5)
 
-    update_balance(user_id, chat_id, payment)
-    update_balance(1548224823, chat_id, -payment)
     cursor.execute('SELECT user_id FROM user_upgrades WHERE chat_id = ? AND upgrade_name = "Бизнес"', (chat_id,))
     business_owners = cursor.fetchall()
 
@@ -633,22 +634,31 @@ def work(message):
     job_name, payment = do_job(user_id, chat_id)
     balance = get_balance(user_id, chat_id)
 
-    response = f"💎 <i>Вы выполнили работу</i> <b>{job_name}</b><i> и заработали </i><b>${int(payment)}" \
-               f"</b>!\n💰<b>Ваш текущий баланс:</b>" \
-               f" <b>$</b>{int(balance+payment)}"
+    response = (f"💎 <i>Вы выполнили работу</i> <b>{job_name}</b><i> и заработали </i><b>${int(payment)}"
+                f"</b>!\n💰<b>Ваш текущий баланс:</b> <b>$</b>{int(balance + payment)}")
     update_balance(user_id, chat_id, payment)
-    update_balance(1548224823, chat_id, -payment)
+
+    cursor.execute("SELECT governbalance FROM government")
+    govern_balance = cursor.fetchone()[0]
+    new_govern_balance = govern_balance - payment
+    cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_govern_balance,))
+    conn.commit()
+
     bot.send_message(chat_id, response, parse_mode='html')
 
-    if balance >= 2500:
-        tax = int(balance * 0.02)
+    if balance >= 50000:
+        tax = int(payment * 0.05)
         update_balance(user_id, chat_id, -tax)
-        update_balance(1548224823, chat_id, tax)
-        update_balance(user_id, chat_id, payment)
-        update_balance(1548224823, chat_id, -payment)
+
+        cursor.execute("SELECT governbalance FROM government")
+        govern_balance = cursor.fetchone()[0]
+        new_govern_balance = govern_balance + tax
+        cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_govern_balance,))
+        conn.commit()
+
         balance = get_balance(user_id, chat_id)
-        bot.send_message(chat_id, f'<b>Налог 2% уплачен!</b> 💸\n<i>Ваш новый баланс:</i>'
-                                  f' <b>{int(balance)}$</b>', parse_mode='html')
+        bot.send_message(chat_id, f'<b>Налог 2% уплачен!</b> 💸\n<i>Ваш новый баланс:</i> <b>{int(balance)}$</b>',
+                         parse_mode='html')
 
     cursor.execute(
         'SELECT * FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = "Майнинг"',
@@ -656,35 +666,68 @@ def work(message):
     if cursor.fetchone():
         random_number = random.randint(1, 50)
         pribyl = random.randint(-700, 5000)
+
         if random_number == 1:
             update_balance(user_id, chat_id, -25000)
+
+            cursor.execute("SELECT governbalance FROM government")
+            govern_balance = cursor.fetchone()[0]
+            new_govern_balance = govern_balance + 25000
+            cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_govern_balance,))
+            conn.commit()
+
             bot.send_message(chat_id,
-                             f"🧯 У вас сгорела видеокарта!</b>\n\n<i>💰 Вы потратили<"
-                             f"/i> <b>$15000</b> <i>на покупку новой видеокарты</i>\n💢<i>"
-                             f" а так же </i><b>$5000</b> <i>на покупку нового огнетушителя</i>"
-                             f"\n🤫 <i>а так же дали взятки общей суммой </i><b>$5000</b> <i>соседям,"
-                             f" чтобы они не настучали на вас в ЯнтарьЭнер"
-                             f"гоСбыт.</i>\n\n🔥 <b>Итого вы потеряли $25000</b>",
-                             parse_mode='html')
-        elif random_number in range(2, 11):
-            update_balance(user_id, chat_id, pribyl - 250)
-            bot.send_message(chat_id,
-                             f'🔍 <b>Бдительные граждане</b> <i>заметили, что вы майните'
-                             f', и вам пришлось</i> <b>купить им шоколадку за $250</b>\n\n'
-                             f'💵 <i>Но за время пока ваш риг майнил,</i> <b>ваш баланс изменился на {pribyl}$</b> <i>(без учёта -250$)</i>',
-                             parse_mode='html')
-        elif random_number in range(12, 14):
-            update_balance(user_id, chat_id, pribyl - 2000)
-            bot.send_message(chat_id,
-                             f'⚡🫰<b> ЯнтарьЭнергоСбыт спалил вашу контору</b>, <i>и потребовал пожертвовать </i><b>2000</b><i> на ремонт штор в их отделении, чтобы вас не переводили на бизнес-тариф по электричеству.</i>\n\n<b>💵 Ваш баланс изменился на {pribyl - 2000}$ с учетом того, что вы до этого майнили.</b>',
-                             parse_mode='html')
-        elif random_number == 15:
-            update_balance(user_id, chat_id, pribyl - 1000)
-            bot.send_message(chat_id, f'<b>📉 Курс биткоина обвалился<b>, <i>ты потерял<i> <b>$1000</b>', parse_mode='html')
-        else:
-            bot.send_message(chat_id, f'<b>💸 Вы успешно изменили свой баланс на {pribyl}$ благодаря майнингу!</b>',
+                             f"🧯 У вас сгорела видеокарта!\n\n<i>💰 Вы потратили</i> <b>$15000</b> "
+                             f"<i>на покупку новой видеокарты</i>\n💢 <i>а так же</i> <b>$5000</b> "
+                             f"<i>на покупку нового огнетушителя</i>\n🤫 <i>а так же дали взятки общей "
+                             f"суммой</i> <b>$5000</b> <i>соседям, чтобы они не настучали на вас "
+                             f"в ЯнтарьЭнергоСбыт.</i>\n\n🔥 <b>Итого вы потеряли $25000</b>",
                              parse_mode='html')
 
+        elif random_number in range(2, 11):
+            update_balance(user_id, chat_id, pribyl - 250)
+
+            cursor.execute("SELECT governbalance FROM government")
+            govern_balance = cursor.fetchone()[0]
+            new_govern_balance = govern_balance + 250
+            cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_govern_balance,))
+            conn.commit()
+
+            bot.send_message(chat_id,
+                             f'🔍 <b>Бдительные граждане</b> <i>заметили, что вы майните, и вам пришлось</i> '
+                             f'<b>купить им шоколадку за $250</b>\n\n💵 <i>Но за время пока ваш риг майнил,</i> '
+                             f'<b>ваш баланс изменился на {pribyl}$</b> <i>(без учёта -250$)</i>',
+                             parse_mode='html')
+
+        elif random_number in range(12, 14):
+            update_balance(user_id, chat_id, pribyl - 2000)
+
+            cursor.execute("SELECT governbalance FROM government")
+            govern_balance = cursor.fetchone()[0]
+            new_govern_balance = govern_balance + 2000
+            cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_govern_balance,))
+            conn.commit()
+
+            bot.send_message(chat_id,
+                             f'⚡🫰<b> ЯнтарьЭнергоСбыт спалил вашу контору</b>, <i>и потребовал пожертвовать</i> '
+                             f'<b>2000$</b><i> на ремонт штор в их отделении.</i>\n\n<b>💵 Ваш баланс изменился на {pribyl - 2000}$.</b>',
+                             parse_mode='html')
+
+        elif random_number == 15:
+            update_balance(user_id, chat_id, pribyl - 1000)
+
+            cursor.execute("SELECT governbalance FROM government")
+            govern_balance = cursor.fetchone()[0]
+            new_govern_balance = govern_balance + 1000
+            cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_govern_balance,))
+            conn.commit()
+
+            bot.send_message(chat_id, f'<b>📉 Курс биткоина обвалился, ты потерял $1000</b>', parse_mode='html')
+
+        else:
+            update_balance(user_id, chat_id, pribyl)
+            bot.send_message(chat_id, f'<b>💸 Вы успешно изменили свой баланс на {pribyl}$ благодаря майнингу!</b>',
+                             parse_mode='html')
 
 def check_balance(message):
     user_id = message.from_user.id
@@ -725,19 +768,26 @@ def buy_upgrade(user_id, chat_id, upgrade_name):
                 return "Вы уже купили это улучшение."
 
             update_balance(user_id, chat_id, -cost[0])
-            update_balance(1548224823, chat_id, cost[0])
+
+            cursor.execute("SELECT governbalance FROM government")
+            govern_balance = cursor.fetchone()[0]
+            new_govern_balance = govern_balance + cost[0]
+            cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_govern_balance,))
+
             cursor.execute('INSERT INTO user_upgrades (user_id, chat_id, upgrade_name) VALUES (?, ?, ?)',
                            (user_id, chat_id, upgrade_name))
             conn.commit()
 
-            response = f"✔️ <i>Вы успешно купили улучшение</i> <b>{upgrade_name}</b> <i>за</i> <b>{cost[0]}</b> <i>монет!</i>\n\n💵 <b>Ваш текущий баланс: {balance} монет.</b>"
+            response = (f"✔️ <i>Вы успешно купили улучшение</i> <b>{upgrade_name}</b> "
+                        f"<i>за</i> <b>{cost[0]}</b> <i>монет!</i>\n\n"
+                        f"💵 <b>Ваш текущий баланс: {balance - cost[0]} монет.</b>\n"
+                        f"💰 <b>Казна правительства пополнилась на {cost[0]} монет.</b>")
         else:
             response = "🤡 Недостаточно средств для покупки этого улучшения."
     else:
         response = "❌ Улучшение не найдено."
 
     return response
-
 
 def openshop(message):
     user_id = message.from_user.id
@@ -784,7 +834,7 @@ def callback_buy_item(call):
         bot.send_message(chat_id, response, parse_mode='html')
 
 
-
+buy_upgrade(6628758852, -1002108574558, 'Ускоритель заработка')
 
 
 def can_steal(user_id, chat_id):
@@ -864,129 +914,6 @@ def steal_money(message):
         bot.reply_to(message, f"❌ *Произошла ошибка:* {e}", parse_mode='Markdown')
 
 
-games = {}
-
-
-def blackjack(message):
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-    key = (chat_id, user_id)
-    command_parts = message.text.split(' ', 1)
-    if len(command_parts) < 2:
-        bot.reply_to(message, "💎 *Пожалуйста, укажите ставку.*", parse_mode='Markdown')
-        return
-
-    stavka = command_parts[1].strip().lower()
-    balance_player = get_balance(user_id, chat_id)
-    if stavka.isdigit():
-        stavka = float(stavka)
-    else:
-        bot.reply_to(message, "*😏 Пожалуйста, укажите целое число!*", parse_mode='Markdown')
-        return
-    if stavka > 5000:
-        bot.reply_to(message, "*🤔 Размер ставки должен быть не более 5000!*", parse_mode='Markdown')
-        return
-    if stavka > balance_player:
-        bot.reply_to(message, "*🤡 Без денег не пускаем!*", parse_mode='Markdown')
-        return
-
-    if key not in games:
-        deck = [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11] * 4
-        random.shuffle(deck)
-        games[key] = {
-            'deck': deck,
-            'player_hand': [deck.pop(), deck.pop()],
-            'dealer_hand': [deck.pop(), deck.pop()]
-        }
-
-    def calculate_score(hand):
-        score = sum(hand)
-        if score > 21 and 11 in hand:
-            hand[hand.index(11)] = 1
-            score = sum(hand)
-        return score
-
-    game = games[key]
-
-    def show_hands():
-        player_hands = ', '.join(map(str, game['player_hand']))
-        dealer_hands = ', '.join(map(str, game['dealer_hand'][:1])) + ', ?'
-        player_score = calculate_score(game['player_hand'])
-        bot.send_message(chat_id, f'💎 Твоя рука: {player_hands}, сумма: {player_score}')
-        bot.send_message(chat_id, f'🃏 Рука дилера: {dealer_hands}')
-        return player_score
-
-    player_score = show_hands()
-
-    if player_score == 21:
-        update_balance(user_id, chat_id, stavka * 1.5)
-        bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\nТвой выигрыш: {stavka * 2.5}")
-        games.pop(key)
-        return
-
-    def ask_for_card():
-        markup = telebot.types.InlineKeyboardMarkup()
-        hit_button = telebot.types.InlineKeyboardButton("♠️ Взять карту", callback_data=f"hit_{user_id}")
-        stand_button = telebot.types.InlineKeyboardButton("🫷 Остановиться", callback_data=f"stand_{user_id}")
-        markup.add(hit_button, stand_button)
-        bot.send_message(chat_id, "🤑 Хочешь взять ещё карту?", reply_markup=markup)
-
-    ask_for_card()
-
-    @bot.callback_query_handler(func=lambda call: call.data in [f"hit_{user_id}", f"stand_{user_id}"])
-    def handle_move(call):
-        if call.from_user.id != user_id:
-            bot.answer_callback_query(call.id, "😢 Эта игра не для тебя!")
-            return
-
-        if key not in games:
-            bot.send_message(chat_id, "😢 Игра завершена!")
-            return
-
-        game = games[key]
-
-        if f"hit_{user_id}" in call.data:
-            game['player_hand'].append(game['deck'].pop())
-            player_score = calculate_score(game['player_hand'])
-            bot.edit_message_text(f'💎 Твоя рука: {game["player_hand"]}, сумма: {player_score}', chat_id,
-                                  call.message.message_id)
-
-            if player_score > 21:
-                update_balance(user_id, chat_id, -stavka)
-                bot.send_message(chat_id, f"😢 Ты проиграл!\nТвой баланс: {int(balance_player - stavka)}")
-                games.pop(key)
-                return
-            elif player_score == 21:
-                update_balance(user_id, chat_id, stavka * 2.5)
-                bot.send_message(chat_id, f"🍀 У тебя Блэкджек!\n Твой выигрыш: {stavka * 1.5}")
-                games.pop(key)
-                return
-            ask_for_card()
-        else:
-            dealer_turn()
-
-    def dealer_turn():
-        while calculate_score(game['dealer_hand']) < 17 or (
-                calculate_score(game['dealer_hand']) == 17 and 11 in game['dealer_hand']):
-            game['dealer_hand'].append(game['deck'].pop())
-
-        dealer_score = calculate_score(game['dealer_hand'])
-        player_score = calculate_score(game['player_hand'])
-
-        bot.send_message(chat_id, f'🃏 Рука дилера: {game["dealer_hand"]}, сумма: {dealer_score}')
-
-        if dealer_score > 21 or player_score > dealer_score:
-            update_balance(user_id, chat_id, stavka)
-            bot.send_message(chat_id, f"💎 Ты выиграл!\nТвой баланс: {int(balance_player + stavka)}")
-
-        elif player_score < dealer_score:
-            update_balance(user_id, chat_id, -stavka)
-            bot.send_message(chat_id, f"😢 Дилер выиграл!\nТвой баланс: {int(balance_player - stavka)}")
-
-        else:
-            bot.send_message(chat_id, "🤔 Ничья!")
-
-        games.pop(key)
 
 
 def classic_roulette(message):
@@ -1072,12 +999,12 @@ def signat_who(message):
         "Вероятно, ",
     ]
 
-    emojis = ["✨", "🔮", "🤔", "😎", "👀", "🌟", "🎯", "🤷‍♂️"]
+    emoji = ["✨", "🔮", "🤔", "😎", "👀", "🌟", "🎯", "🤷‍♂️"]
 
-    random_phrase = random.choice(phrases)
-    random_emoji = random.choice(emojis)
+    randomp = random.choice(phrases)
+    randome = random.choice(emoji)
 
-    response_text = f"{random_phrase} @{random_admin.username} {message.text[10:]} {random_emoji}"
+    response_text = f"{randomp} @{random_admin.username} {message.text[10:]} {randome}"
 
     bot.send_message(message.chat.id, response_text)
 
@@ -1160,4 +1087,42 @@ def transfer_money(message):
 
     bot.send_message(chat_id,
                      f"✔️ @{message.from_user.username} перевел(а) {amount} монет пользователю @{to_username}.")
+
+def government_addmoney(message):
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+
+    command_parts = message.text.split(' ', 1)
+
+    if len(command_parts) < 2:
+        bot.reply_to(message, "❌ Неверный формат команды! Введите сумму для добавления.")
+        return
+
+    try:
+        amount = int(command_parts[1].strip())
+    except ValueError:
+        bot.reply_to(message, "❌ Укажите корректную числовую сумму.")
+        return
+
+
+    if user_id != 1548224823:
+        bot.send_message(chat_id, 'Кажется, вы не являетесь президентом группы!')
+        return
+
+    cursor.execute("SELECT governbalance FROM government")
+    result = cursor.fetchone()
+
+    if result:
+        current_balance = result[0]
+        new_balance = current_balance + amount
+        cursor.execute("UPDATE government SET governbalance = ? WHERE rowid = 1", (new_balance,))
+        update_balance(user_id, chat_id, -amount)
+    else:
+        new_balance = amount
+        cursor.execute("INSERT INTO government (governbalance) VALUES (?)", (new_balance,))
+
+    conn.commit()
+
+
+    bot.send_message(chat_id, f'✅ Добавлено {amount} монет. Новый баланс: {new_balance} монет.')
 bot.polling(none_stop=True)
