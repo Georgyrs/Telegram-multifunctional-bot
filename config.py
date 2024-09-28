@@ -6,6 +6,8 @@ GIGACHAT_KEY = 'MmExMTU1ZjUtMzc4MC00NjhkLWI3NWQtMWU0YjYxNGFiOTBlOmZlOWJmNTRmLWI1
 WEATHER_URL = "https://rp5.ru/Погода_в_Калининграде"
 WEATHER_API_URL = "https://rusmeteo.net/weather/kaliningrad/14days/"
 
+group_preservatident = 1548224823
+casino_owner = 5515972843
 
 WIKIPEDIA_LANGUAGE = 'ru'
 
