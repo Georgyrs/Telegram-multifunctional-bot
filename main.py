@@ -999,12 +999,12 @@ def signat_who(message):
         "Вероятно, ",
     ]
 
-    emoji = ["✨", "🔮", "🤔", "😎", "👀", "🌟", "🎯", "🤷‍♂️"]
+    emojis = ["✨", "🔮", "🤔", "😎", "👀", "🌟", "🎯", "🤷‍♂️"]
 
-    randomp = random.choice(phrases)
-    randome = random.choice(emoji)
+    random_phrase = random.choice(phrases)
+    random_emoji = random.choice(emojis)
 
-    response_text = f"{randomp} @{random_admin.username} {message.text[10:]} {randome}"
+    response_text = f"{random_phrase} @{random_admin.username} {message.text[10:]} {random_emoji}"
 
     bot.send_message(message.chat.id, response_text)
 
