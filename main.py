@@ -239,12 +239,12 @@ def handle_all_messages(message):
         transfer_money(message)
     elif text.startswith('казна'):
         government_addmoney(message)
-    elif text.startswith('казиныч_пополнить'):
+    elif text.startswith('казиныч'):
         casino_addmoney(message)
-    elif text.startswith('казиныч_снять'):
-        casino_withdrawal(message)
-    elif text.startswith('казиныч баланс'):
+    elif text.startswith('баланс казиныча'):
         send_casino_balance(message)
+    elif text.startswith('баланс казны'):
+        send_gov_balance(message)
 
 
     if is_vip:
@@ -675,7 +675,7 @@ def work(message):
         (user_id, chat_id))
     if cursor.fetchone():
         random_number = random.randint(1, 50)
-        pribyl = random.randint(-700, 5000)
+        pribyl = random.randint(-3000, 5000)
 
         if random_number == 1:
             update_balance(user_id, chat_id, -25000)
@@ -962,7 +962,13 @@ def classic_roulette(message):
         bot.reply_to(message, "⚠️ _Выберите цвет: красный, черный, зеленый!_", parse_mode='Markdown')
         return
 
-    random_color = random.choice(list(colors.keys()))
+    pierdole = random.randint(1,100)
+    if pierdole == 1 or pierdole == 2:
+        random_color = 'зеленый'
+    elif pierdole in range(3, 51):
+        random_color = 'красный'
+    else:
+        random_color = 'черный'
 
     prev_message = None
 
@@ -991,7 +997,7 @@ def classic_roulette(message):
 
         if result:
             current_balance = result[0]
-            new_balance = current_balance + +winnings
+            new_balance = current_balance - winnings
             cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
         bot.send_message(chat_id, f"🎉 _Поздравляем!_ Выпал {colors[random_color]} \n**Ваш выигрыш: {winnings} 💰",
                          parse_mode='Markdown')
@@ -1178,7 +1184,7 @@ def casino_addmoney(message):
     command_parts = message.text.split(' ', 1)
 
     if len(command_parts) < 2:
-        bot.reply_to(message, "❌ Неверный формат команды! Введите сумму для добавления.")
+        bot.reply_to(message, "❌ Неверный формат команды! Введите сумму для добавления или снятия.")
         return
 
     try:
@@ -1187,18 +1193,17 @@ def casino_addmoney(message):
         bot.reply_to(message, "❌ Укажите корректную числовую сумму.")
         return
 
-
     if user_id != config.casino_owner:
         kurwa = random.randint(1, 5)
         if kurwa == 1:
             bot.reply_to(message, '🤡 Кажется, вы не владелец казино!')
-        if kurwa == 2:
+        elif kurwa == 2:
             bot.reply_to(message, '🤠 Наталья Морская пехота')
-        if kurwa == 3:
+        elif kurwa == 3:
             bot.reply_to(message, '🫵 А ТЕПЕРЬ ПОШЕЛ НА***')
-        if kurwa == 4:
+        elif kurwa == 4:
             bot.reply_to(message, '🤬 Я ЩАС СЯДУ ЗА РУЛЬ А ТЫ ВЫЛЕТИШЬ ОТСЮДА')
-        if kurwa == 5:
+        elif kurwa == 5:
             bot.reply_to(message, '🤔 Ну и на что ты надеялся, гений?')
         return
 
@@ -1207,78 +1212,39 @@ def casino_addmoney(message):
 
     if result:
         current_balance = result[0]
-        if current_balance + amount < 0:
-            bot.reply_to(message,
-                         f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла, коррупционер!\n\n💎 На счету у государства: {current_balance}')
-            return
-        elif amount > current_balance:
-            bot.reply_to(message, f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла, коррупционер!\n\n💎 На счету у государства: {current_balance}')
+        if amount < 0:
+            if abs(amount) > current_balance:
+                bot.reply_to(message, f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла, коррупционер!\n\n💎 На счету у государства: {current_balance}')
+                return
+            elif current_balance + amount < 0:
+                bot.reply_to(message, f'🫵 Баланс казино не может быть отрицательным.\n\n💎 На счету у государства: {current_balance}')
+                return
+            else:
+                new_balance = current_balance + amount
+                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+                update_balance(user_id, chat_id, -amount)
+        else:
+            balance_player = get_balance(user_id, chat_id)
+            if amount > balance_player:
+                bot.reply_to(message, f'🫵 У вас недостаточно денег на балансе для пополнения казино!\n\n💼 Ваш баланс: {balance_player}')
+                return
+            else:
+                new_balance = current_balance + amount
+                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+                update_balance(user_id, chat_id, -amount)  # Списать деньги с игрока
+
+    else:
+        if amount < 0:
+            bot.reply_to(message, '❌ Нельзя снимать деньги с пустого баланса казино!')
             return
         else:
-            new_balance = current_balance + amount
-            cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+            new_balance = amount
+            cursor.execute("INSERT INTO casino (casinobalance) VALUES (?)", (new_balance,))
             update_balance(user_id, chat_id, -amount)
-    else:
-        new_balance = amount
-        cursor.execute("INSERT INTO casino (casinobalance) VALUES (?)", (new_balance,))
 
     conn.commit()
 
-
-    bot.send_message(chat_id, f'🎰✅ Добавлено {amount} монет.\n\n Новый баланс: {new_balance} монет.')
-
-def casino_withdrawal(message):
-    user_id = message.from_user.id
-    chat_id = message.chat.id
-
-    command_parts = message.text.split(' ', 1)
-
-    if len(command_parts) < 2:
-        bot.reply_to(message, "❌ Неверный формат команды! Введи сумму для снятия.")
-        return
-
-    try:
-        amount = int(command_parts[1].strip())
-    except ValueError:
-        bot.reply_to(message, "❌ Укажи корректную числовую сумму.")
-        return
-
-    if user_id != config.casino_owner:
-        kurwa = random.randint(1, 5)
-        responses = [
-            '🤡 Кажется, вы не владелец казино!',
-            '🤠 Наталья Морская пехота',
-            '🫵 А ТЕПЕРЬ ПОШЕЛ НА***',
-            '🤬 Я ЩАС СЯДУ ЗА РУЛЬ А ТЫ ВЫЛЕТИШЬ ОТСЮДА',
-            '🤔 Ну и на что ты надеялся, гений?'
-        ]
-        bot.reply_to(message, random.choice(responses))
-        return
-
-    cursor.execute("SELECT casinobalance FROM casino")
-    result = cursor.fetchone()
-
-    if result:
-        current_balance = result[0]
-        spisat = True
-        if current_balance < 0:
-            bot.send_message(chat_id, '🤡 ахахаххаха твоё сраное казино обанкротилось')
-            spisat = False
-        if amount > current_balance:
-            bot.send_message(chat_id, f'🤬 Слышь? Многовато хочешь. Щас балик казиныча: {current_balance}')
-            spisat = False
-
-        if spisat:
-            new_balance = current_balance - amount
-            cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
-            update_balance(user_id, chat_id, +amount)
-            bot.send_message(chat_id, f'🎰✅ Снято {amount} монет.\n\n Новый баланс: {new_balance} монет.')
-        else:
-            bot.send_message(chat_id, 'Снятие невозможно')
-    else:
-        bot.send_message(chat_id, '😢 У казиныча еще даже нет баланса!')
-
-    conn.commit()
+    bot.send_message(chat_id, f'🎰✅ Изменено на {amount} монет.\n\n Новый баланс казино: {new_balance} монет.')
 
 def send_casino_balance(message):
     cursor.execute("SELECT casinobalance FROM casino")
@@ -1286,4 +1252,11 @@ def send_casino_balance(message):
     current_balance = result[0]
     bot.send_message(message.chat.id, f'🎰 Баланс казиныча: {current_balance}$')
 
+def send_gov_balance(message):
+    cursor.execute("SELECT governbalance FROM government")
+    result = cursor.fetchone()
+    current_balance = result[0]
+    bot.reply_to(message, f'🏦 Баланс государства: {current_balance}$')
+
+print('Ошибок при запуске не возникло')
 bot.polling(none_stop=True)
