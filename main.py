@@ -73,6 +73,12 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                     balance INTEGER DEFAULT 0
                 )''')
 
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                    chat_id INTEGER,
+                    user_id INTEGER,
+                    social_rating INTEGER DEFAULT 50
+                )''')
+
 cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
                     job_name TEXT,
                     min_payment INTEGER,
@@ -239,13 +245,18 @@ def handle_all_messages(message):
         transfer_money(message)
     elif text.startswith('казна'):
         government_addmoney(message)
-    elif text.startswith('казиныч'):
+    elif text.startswith('казино'):
         casino_addmoney(message)
     elif text.startswith('баланс казны'):
         send_gov_balance(message)
+    elif text.startswith('баланс казино'):
+        send_casino_balance(message)
     elif text.startswith('грабеж государства'):
         ograbit_gosudarstvo(message)
-
+    elif text.startswith('дать рис'):
+        increase_social_rating(message)
+    elif text.startswith('забрать рис'):
+        decrease_social_rating(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -272,7 +283,7 @@ def respond_help(message):
     response = "*Команды:*\n\n"
     response += "• *шип @1 @2* – для создания шипа.\n"
     response += "• *список шипов* – покажет все шипы.\n"
-    response += "• *пугалка* – комната страха для Симы.\n"
+    response += "• *пугалка* – комната страха.\n"
     response += "• *математика* – получите случайную оценку по математике.\n"
     response += "• *событие_создать* – создать событие. Формат: *дата событие*\n"
     response += "• *даты* – покажет все важные события.\n"
@@ -285,7 +296,15 @@ def respond_help(message):
     response += "• *кошелек* – Ваш баланс.\n"
     response += "• *ограбить @* – Украсть деньги у пользователя.\n"
     response += "• *рулетка <ставка> <цвет> - Классическая рулетка*\n"
-    response += "• *азарт <ставка> - Блэкджек*\n"
+    response += "• *грабеж государства* – Украсть деньги из бюджета группы.\n"
+    response += "• *воркать* - начать скамить\n"
+    response += "• *казна <сумма>* - пополнить бюджет\n"
+    response += "• *казино <сумма>* - пополнить бюджет казино\n"
+    response += "• *баланс казино* - проверить баланс казино\n"
+    response += "• *баланс казны* - проверить баланс группы\n"
+    response += "• *сигнат кто* - предсказатель\n"
+    response += "• *дать рис* - повышение соц. рейтинга\n"
+    response += "• *забрать рис* - понижение соц. рейтинга\n"
     bot.send_message(message.chat.id, response, parse_mode='Markdown')
 
 
@@ -297,8 +316,10 @@ def stata(message):
     results = cursor.fetchall()
     bought_items = ', '.join([item[0] for item in results]) if results else '❌ Нет купленных товаров'
     balance = round(get_balance(user_id, chat_id))
+    socrating = round(get_social_rating(user_id, chat_id))
     bot.send_message(chat_id, f'*💎 Статистика пользователя @{user_nickname}:*\n'
                               f'💰 _Баланс:_ *{balance}*\n\n'
+                              f'🪪 _Социальный рейтинг:_ *{socrating}*\n\n'
                               f'🛒 _Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
 
 
@@ -497,6 +518,12 @@ def get_balance(user_id, chat_id):
     return result[0] if result else 0
 
 
+def get_social_rating(user_id, chat_id):
+    cursor.execute('SELECT social_rating FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+    return result[0] if result else 0
+
+
 def update_balance(user_id, chat_id, amount):
     cursor.execute('SELECT balance FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     result = cursor.fetchone()
@@ -506,6 +533,18 @@ def update_balance(user_id, chat_id, amount):
                        (new_balance, user_id, chat_id))
     else:
         cursor.execute('INSERT INTO users (chat_id, user_id, balance) VALUES (?, ?, ?)', (chat_id, user_id, amount))
+    conn.commit()
+
+
+def update_rating(user_id, chat_id, amount):
+    cursor.execute('SELECT social_rating FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+    if result:
+        new_rating = result[0] + amount
+        cursor.execute('UPDATE users SET social_rating = ? WHERE user_id = ? AND chat_id = ?',
+                       (new_rating, user_id, chat_id))
+    else:
+        cursor.execute('INSERT INTO users (chat_id, user_id, social_rating) VALUES (?, ?, ?)', (chat_id, user_id, amount))
     conn.commit()
 
 
@@ -554,7 +593,6 @@ def work_command(message):
     user_id = message.from_user.id
 
     ensure_last_work_time_column_exists()
-
     current_time = time.time()
 
     cursor.execute('SELECT last_work_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
@@ -594,9 +632,28 @@ def work_command(message):
             update_balance(user_id, chat_id, -loss)
             update_balance(1548224823, chat_id, 2500)
             update_balance(5515972843, chat_id, 2500)
+            update_rating(user_id, chat_id, -15)
+            a = 1
+            media_paths = config.RATING_PATHS
+
+            if a in media_paths:
+                media_path = media_paths[a]
+                if os.path.exists(media_path):
+                    with open(media_path, 'rb') as media:
+                        if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                            bot.send_photo(message.chat.id, media)
             bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлось дать им <i>взятку</i>"
                                       f" размером <b>5000</b>", parse_mode='html')
         else:
+            a = 5
+            media_paths = config.RATING_PATHS
+
+            if a in media_paths:
+                media_path = media_paths[a]
+                if os.path.exists(media_path):
+                    with open(media_path, 'rb') as media:
+                        if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                            bot.send_photo(message.chat.id, media)
             update_balance(user_id, chat_id, payment)
             bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили"
                                       f"</i> мамонта", parse_mode='html')
@@ -607,9 +664,28 @@ def work_command(message):
             update_balance(user_id, chat_id, -loss)
             update_balance(1548224823, chat_id, 2500)
             update_balance(5515972843, chat_id, 2500)
+            update_rating(user_id, chat_id, -15)
+            a = 1
+            media_paths = config.RATING_PATHS
+
+            if a in media_paths:
+                media_path = media_paths[a]
+                if os.path.exists(media_path):
+                    with open(media_path, 'rb') as media:
+                        if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                            bot.send_photo(message.chat.id, media)
             bot.send_message(chat_id, f"🚨 <i>Вас засекли</i> <b>мусора</b>, и вам пришлос"
                                       f"ь дать им <i>взятку</i> размером <b>5000</b>", parse_mode='html')
         else:
+            a = 5
+            media_paths = config.RATING_PATHS
+
+            if a in media_paths:
+                media_path = media_paths[a]
+                if os.path.exists(media_path):
+                    with open(media_path, 'rb') as media:
+                        if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                            bot.send_photo(message.chat.id, media)
             update_balance(user_id, chat_id, payment)
             bot.send_message(chat_id, f"🦣💸 Вы заработали <b>{payment}</b> на том, что <i>заскамили<"
                                       f"/i> мамонта", parse_mode='html')
@@ -633,7 +709,6 @@ def can_work(user_id, chat_id):
 
 def work(message):
     init_jobs()
-
     user_id = message.from_user.id
     chat_id = message.chat.id
     can_work_now, time_left = can_work(user_id, chat_id)
@@ -647,6 +722,7 @@ def work(message):
     response = (f"💎 <i>Вы выполнили работу</i> <b>{job_name}</b><i> и заработали </i><b>${int(payment)}"
                 f"</b>!\n💰<b>Ваш текущий баланс:</b> <b>$</b>{int(balance + payment)}")
     update_balance(user_id, chat_id, payment)
+    update_rating(user_id, chat_id, 2)
 
     cursor.execute("SELECT governbalance FROM government")
     govern_balance = cursor.fetchone()[0]
@@ -720,7 +796,8 @@ def work(message):
 
             bot.send_message(chat_id,
                              f'⚡🫰<b> ЯнтарьЭнергоСбыт спалил вашу контору</b>, <i>и потребовал пожертвовать</i> '
-                             f'<b>2000$</b><i> на ремонт штор в их отделении.</i>\n\n<b>💵 Ваш баланс изменился на {pribyl - 2000}$.</b>',
+                             f'<b>2000$</b><i> на ремонт штор в их отделении.</i>\n\n<b>💵'
+                             f' Ваш баланс изменился на {pribyl - 2000}$.</b>',
                              parse_mode='html')
 
         elif random_number == 15:
@@ -739,6 +816,101 @@ def work(message):
             bot.send_message(chat_id, f'<b>💸 Вы успешно изменили свой баланс на {pribyl}$ благодаря майнингу!</b>',
                              parse_mode='html')
 
+
+INCREASE_DELAY = 24 * 60 * 60
+
+
+def ensure_last_increase_time_column_exists():
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if 'last_increase_time' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN last_increase_time REAL')
+        conn.commit()
+
+
+def increase_social_rating(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    ensure_last_increase_time_column_exists()
+    current_time = time.time()
+
+    if not message.reply_to_message:
+        bot.send_message(chat_id, "📝 Ответьте на сообщение пользователя, чтобы повысить его социальный рейтинг.")
+        return
+    mentioned_user = message.reply_to_message.from_user.id
+    if mentioned_user == user_id:
+        bot.send_message(chat_id, "❌ Вы не можете повысить рейтинг самому себе!")
+        return
+    cursor.execute('SELECT last_increase_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+
+    if result:
+        last_increase_time = result[0]
+    else:
+        last_increase_time = None
+
+    if last_increase_time and current_time - last_increase_time < INCREASE_DELAY:
+        remaining_time = INCREASE_DELAY - (current_time - last_increase_time)
+        bot.send_message(chat_id, f"⏳ Вы сможете снова повысить социальный рейтинг через {int(remaining_time // 3600)} часов.")
+        return
+
+    cursor.execute('UPDATE users SET last_increase_time = ? WHERE user_id = ? AND chat_id = ?',
+                   (current_time, user_id, chat_id))
+    conn.commit()
+
+    update_rating(mentioned_user, chat_id, 5)
+    bot.send_message(chat_id, f"✅ Социальный рейтинг пользователя @{message.reply_to_message.from_user.username}"
+                              f" был повышен на 5 единиц!")
+
+
+DECREASE_DELAY = 24 * 60 * 60
+
+
+def ensure_last_decrease_time_column_exists():
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if 'last_decrease_time' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN last_decrease_time REAL')
+        conn.commit()
+
+
+def decrease_social_rating(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    ensure_last_decrease_time_column_exists()
+    current_time = time.time()
+
+    if not message.reply_to_message:
+        bot.send_message(chat_id, "📝 Ответьте на сообщение пользователя, чтобы понизить его социальный рейтинг.")
+        return
+    mentioned_user = message.reply_to_message.from_user.id
+    if mentioned_user == user_id:
+        bot.send_message(chat_id, "❌ Вы не можете понизить рейтинг самому себе!")
+        return
+    cursor.execute('SELECT last_decrease_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+
+    if result:
+        last_decrease_time = result[0]
+    else:
+        last_decrease_time = None
+
+    if last_decrease_time and current_time - last_decrease_time < DECREASE_DELAY:
+        remaining_time = DECREASE_DELAY - (current_time - last_decrease_time)
+        bot.send_message(chat_id, f"⏳ Вы сможете снова понизить социальный рейтинг через {int(remaining_time // 3600)} часов.")
+        return
+
+    cursor.execute('UPDATE users SET last_increase_time = ? WHERE user_id = ? AND chat_id = ?',
+                   (current_time, user_id, chat_id))
+    conn.commit()
+
+    update_rating(mentioned_user, chat_id, -5)
+    bot.send_message(chat_id, f"✅ Социальный рейтинг пользователя @{message.reply_to_message.from_user.username}"
+                              f" был понижен на 5 единиц!")
 def check_balance(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
@@ -799,6 +971,7 @@ def buy_upgrade(user_id, chat_id, upgrade_name):
 
     return response
 
+
 def openshop(message):
     user_id = message.from_user.id
     markup = InlineKeyboardMarkup(row_width=1)
@@ -810,7 +983,8 @@ def openshop(message):
 
     markup.add(item1, item2, item3, item4, item5)
 
-    bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
+    bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n"
+                                      "\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
@@ -842,9 +1016,6 @@ def callback_buy_item(call):
         bot.answer_callback_query(call.id, response, show_alert=True)
     else:
         bot.send_message(chat_id, response, parse_mode='html')
-
-
-buy_upgrade(6628758852, -1002108574558, 'Ускоритель заработка')
 
 
 def can_steal(user_id, chat_id):
@@ -910,20 +1081,28 @@ def steal_money(message):
 
             thief_balance = get_balance(user_id, chat_id)
             new_target_balance = get_balance(target_id, chat_id)
-
             bot.send_message(chat_id, f"💸 *{message.from_user.first_name}* украл у *{target_user.first_name}* "
                                       f"{int(stolen_amount)} монет! Теперь у *{message.from_user.first_name}* "
                                       f"{int(thief_balance)} монет, а у *{target_user.first_name}* "
                                       f"{int(new_target_balance)} монет.", parse_mode='Markdown')
         else:
             update_balance(user_id, chat_id, -500)
+            update_rating(user_id, chat_id, -15)
+            a = 1
+            media_paths = config.RATING_PATHS
+
+            if a in media_paths:
+                media_path = media_paths[a]
+                if os.path.exists(media_path):
+                    with open(media_path, 'rb') as media:
+                        if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                            bot.send_photo(message.chat.id, media)
             bot.send_message(chat_id,
                              "👮 Только вы сунули руку в карман,"
-                             " как <b>офицер полиции обратил на вас внимание</b>.\n\n 👟 Унося ноги вы выронили <b>$500</b>", parse_mode='html')
+                             " как <b>офицер полиции обратил на вас внимание</b>.\n"
+                             "\n 👟 Унося ноги вы выронили <b>$500</b>", parse_mode='html')
     except Exception as e:
         bot.reply_to(message, f"❌ *Произошла ошибка:* {e}", parse_mode='Markdown')
-
-
 
 
 def classic_roulette(message):
@@ -962,7 +1141,7 @@ def classic_roulette(message):
         bot.reply_to(message, "⚠️ _Выберите цвет: красный, черный, зеленый!_", parse_mode='Markdown')
         return
 
-    pierdole = random.randint(1,100)
+    pierdole = random.randint(1, 100)
     if pierdole == 1 or pierdole == 2:
         random_color = 'зеленый'
     elif pierdole in range(3, 51):
@@ -1111,13 +1290,23 @@ def transfer_money(message):
 
     update_balance(user_id, chat_id, -amount)
     update_balance(to_user_id, chat_id, amount)
+    update_rating(user_id, chat_id, 5)
 
     cursor.execute('UPDATE users SET last_transfer_time = ? WHERE user_id = ? AND chat_id = ?',
                    (current_time, user_id, chat_id))
     conn.commit()
+    a = 3
+    media_paths = config.RATING_PATHS
 
+    if a in media_paths:
+        media_path = media_paths[a]
+        if os.path.exists(media_path):
+            with open(media_path, 'rb') as media:
+                if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                    bot.send_photo(message.chat.id, media)
     bot.send_message(chat_id,
                      f"✔️ @{message.from_user.username} перевел(а) {amount} монет пользователю @{to_username}.")
+
 
 def government_addmoney(message):
     user_id = message.from_user.id
@@ -1138,9 +1327,8 @@ def government_addmoney(message):
         bot.reply_to(message, "❌ Укажите корректную числовую сумму.")
         return
 
-
     if user_id != config.group_preservatident:
-        kurwa = random.randint(1,6)
+        kurwa = random.randint(1, 6)
         if kurwa == 1:
             bot.reply_to(message, '🤡 Кажется, вы не являетесь президентом группы!')
         if kurwa == 2:
@@ -1162,7 +1350,9 @@ def government_addmoney(message):
         current_balance = result[0]
         if current_balance + amount < 0:
             bot.reply_to(message,
-                         f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла, коррупционер (или у тебя не хватает бабок для пополнения балика)!\n\n💎 На счету у государства: {current_balance}')
+                         f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла,'
+                         f' коррупционер (или у тебя не хватает бабок для пополнения балика)!\n\
+                         n💎 На счету у государства: {current_balance}')
             return
         elif amount > current_balance:
             bot.reply_to(message, f'🫵 ахахахахаха бомж у тебя бабок не хватает!\n\n💎 На счету у государства: {current_balance}')
@@ -1177,8 +1367,8 @@ def government_addmoney(message):
 
     conn.commit()
 
-
     bot.send_message(chat_id, f'✅ Добавлено {amount} монет. Новый баланс: {new_balance} монет.')
+
 
 def casino_addmoney(message):
     user_id = message.from_user.id
@@ -1187,10 +1377,7 @@ def casino_addmoney(message):
     command_parts = message.text.split(' ', 1)
 
     if len(command_parts) < 2:
-        cursor.execute("SELECT casinobalance FROM casino")
-        result = cursor.fetchone()
-        current_balance = result[0]
-        bot.reply_to(message, f'🎰 Баланс казиныча: {current_balance}$')
+        bot.reply_to(message, "❌ Неверный формат команды! Введите сумму для добавления или снятия.")
         return
 
     try:
@@ -1220,10 +1407,12 @@ def casino_addmoney(message):
         current_balance = result[0]
         if amount < 0:
             if abs(amount) > current_balance:
-                bot.reply_to(message, f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла, коррупционер!\n\n💎 На счету у государства: {current_balance}')
+                bot.reply_to(message, f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла, коррупционер!\n'
+                                      f'\n💎 На счету у государства: {current_balance}')
                 return
             elif current_balance + amount < 0:
-                bot.reply_to(message, f'🫵 Баланс казино не может быть отрицательным.\n\n💎 На счету у государства: {current_balance}')
+                bot.reply_to(message, f'🫵 Баланс казино не может быть отрицательным.\n\n💎'
+                                      f' На счету у государства: {current_balance}')
                 return
             else:
                 new_balance = current_balance + amount
@@ -1232,7 +1421,8 @@ def casino_addmoney(message):
         else:
             balance_player = get_balance(user_id, chat_id)
             if amount > balance_player:
-                bot.reply_to(message, f'🫵 У вас недостаточно денег на балансе для пополнения казино!\n\n💼 Ваш баланс: {balance_player}')
+                bot.reply_to(message, f'🫵 У вас недостаточно денег на'
+                                      f' балансе для пополнения казино!\n\n💼 Ваш баланс: {balance_player}')
                 return
             else:
                 new_balance = current_balance + amount
@@ -1250,7 +1440,15 @@ def casino_addmoney(message):
 
     conn.commit()
 
-    bot.send_message(chat_id, f'🎰✅ Изменено на {amount} монет.\n\n💎 Новый баланс казино: {new_balance} монет.')
+    bot.send_message(chat_id, f'🎰✅ Изменено на {amount} монет.\n\n Новый баланс казино: {new_balance} монет.')
+
+
+def send_casino_balance(message):
+    cursor.execute("SELECT casinobalance FROM casino")
+    result = cursor.fetchone()
+    current_balance = result[0]
+    bot.send_message(message.chat.id, f'🎰 Баланс казино: {current_balance}$')
+
 
 def send_gov_balance(message):
     cursor.execute("SELECT governbalance FROM government")
@@ -1258,7 +1456,44 @@ def send_gov_balance(message):
     current_balance = result[0]
     bot.reply_to(message, f'🏦 Баланс государства: {current_balance}$')
 
+
+STEAL_DELAY = 5 * 24 * 60 * 60
+
+
+def ensure_last_steal_time_column_exists():
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if 'last_steal_time' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN last_steal_time REAL')
+        conn.commit()
+
+
 def ograbit_gosudarstvo(message):
+    chat_id = message.chat.id
+    user_id = message.from_user.id
+
+    ensure_last_steal_time_column_exists()
+    current_time = time.time()
+
+    cursor.execute('SELECT last_steal_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+
+    if result:
+        last_steal_time = result[0]
+    else:
+        last_steal_time = None
+
+    if last_steal_time and current_time - last_steal_time < STEAL_DELAY:
+        remaining_time = STEAL_DELAY - (current_time - last_steal_time)
+        bot.send_message(chat_id,
+                         f"💸 Вы сможете ограбить государство через {int(remaining_time // (24 * 60 * 60))} дней.")
+        return
+
+    cursor.execute('UPDATE users SET last_steal_time = ? WHERE user_id = ? AND chat_id = ?',
+                   (current_time, user_id, chat_id))
+    conn.commit()
+
     wait_msg = bot.reply_to(message, '⏳')
 
     kurwa = random.randint(1, 3)
@@ -1277,10 +1512,19 @@ def ograbit_gosudarstvo(message):
 
     else:
         bot.delete_message(message.chat.id, wait_msg.id)
-        update_balance(message.from_user.id, message.chat.id, -50000)
+        update_balance(message.from_user.id, message.chat.id, -20000)
+        update_balance(5515972843, chat_id, 20000)
+        update_rating(message.from_user.id, message.chat.id, -50)
+        a = 4
+        media_paths = config.RATING_PATHS
+
+        if a in media_paths:
+            media_path = media_paths[a]
+            if os.path.exists(media_path):
+                with open(media_path, 'rb') as media:
+                    if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                        bot.send_photo(message.chat.id, media)
         bot.reply_to(message, '🚨 Вас засекли мусора, и вам пришлось дать им взятку размером 20.000$')
 
 
-
-print('Ошибок при запуске не возникло')
 bot.polling(none_stop=True)
