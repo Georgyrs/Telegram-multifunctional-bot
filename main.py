@@ -1647,8 +1647,8 @@ def dice_casino(message):
 
     casino_balance = result_db[0]
 
-    if stavka * 3 > casino_balance:
-        bot.reply_to(message, "❌ Казино не может выплатить такую сумму, уменьшите ставку.")
+    if stavka > 5000:
+        bot.reply_to(message, "🫵 Лудомании скажем НЕТ! Уменьши ставку до 5000.")
         return
 
     dice_msg = bot.send_dice(message.chat.id, emoji='🎲')
