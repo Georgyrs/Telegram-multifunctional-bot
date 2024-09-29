@@ -245,12 +245,8 @@ def handle_all_messages(message):
         transfer_money(message)
     elif text.startswith('казна'):
         government_addmoney(message)
-    elif text.startswith('казино'):
+    elif text.startswith('казиныч'):
         casino_addmoney(message)
-    elif text.startswith('баланс казны'):
-        send_gov_balance(message)
-    elif text.startswith('баланс казино'):
-        send_casino_balance(message)
     elif text.startswith('грабеж государства'):
         ograbit_gosudarstvo(message)
     elif text.startswith('дать рис'):
@@ -485,8 +481,23 @@ def wiki_search(message):
 
 
 def rp_commands(message):
-    random_phrase = ['Аааах, как приятно, наверное🥵', 'Как так можно вообще?!🤬', 'Ооой, да ты пошлый🔞',
-                     'Кракен щас забанит тебя за такое!🔨']
+    random_phrase = [
+        'Аааах, как приятно, наверное🥵',
+        'Как так можно вообще?!🤬',
+        'Ооой, да ты пошлый🔞',
+        'Кракен щас забанит тебя за такое!🔨',
+        'Эх, это точно перебор...😏',
+        'Ой-ой, тут явно кто-то заигрался!🫣',
+        'Вот это ход!🔥',
+        'И что на это скажет твоя совесть?🤔',
+        'Ничего себе поворот!😮',
+        'Хм, это, конечно, неожиданно😳',
+        'Даже не знаю, как это комментировать...😶',
+        'Ого, вот это заявление!😲',
+        'Ты ведь понимаешь, что за это можно и наказать?👮‍♂️',
+        'Это что-то новенькое!🙀',
+        'Ух, накал страстей!🔥'
+    ]
     random_choice = random.choice(random_phrase)
     command_parts = message.text.split(' ', 2)
 
@@ -817,7 +828,7 @@ def work(message):
                              parse_mode='html')
 
 
-INCREASE_DELAY = 24 * 60 * 60
+INCREASE_DELAY = 2 * 60 * 60
 
 
 def ensure_last_increase_time_column_exists():
@@ -865,7 +876,7 @@ def increase_social_rating(message):
                               f" был повышен на 5 единиц!")
 
 
-DECREASE_DELAY = 24 * 60 * 60
+DECREASE_DELAY = 2 * 60 * 60
 
 
 def ensure_last_decrease_time_column_exists():
@@ -891,6 +902,7 @@ def decrease_social_rating(message):
     if mentioned_user == user_id:
         bot.send_message(chat_id, "❌ Вы не можете понизить рейтинг самому себе!")
         return
+
     cursor.execute('SELECT last_decrease_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
     result = cursor.fetchone()
 
@@ -904,13 +916,14 @@ def decrease_social_rating(message):
         bot.send_message(chat_id, f"⏳ Вы сможете снова понизить социальный рейтинг через {int(remaining_time // 3600)} часов.")
         return
 
-    cursor.execute('UPDATE users SET last_increase_time = ? WHERE user_id = ? AND chat_id = ?',
+    cursor.execute('UPDATE users SET last_decrease_time = ? WHERE user_id = ? AND chat_id = ?',
                    (current_time, user_id, chat_id))
     conn.commit()
 
     update_rating(mentioned_user, chat_id, -5)
-    bot.send_message(chat_id, f"✅ Социальный рейтинг пользователя @{message.reply_to_message.from_user.username}"
-                              f" был понижен на 5 единиц!")
+    bot.send_message(chat_id, f"✅ Социальный рейтинг пользователя @{message.reply_to_message.from_user.username} был понижен на 5 единиц!")
+
+
 def check_balance(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
@@ -1291,19 +1304,19 @@ def transfer_money(message):
     update_balance(user_id, chat_id, -amount)
     update_balance(to_user_id, chat_id, amount)
     update_rating(user_id, chat_id, 5)
+    if amount >= 5000:
+        a = 3
+        media_paths = config.RATING_PATHS
 
+        if a in media_paths:
+            media_path = media_paths[a]
+            if os.path.exists(media_path):
+                with open(media_path, 'rb') as media:
+                    if media_path.endswith(('.jpg', '.jpeg', '.png')):
+                        bot.send_photo(message.chat.id, media)
     cursor.execute('UPDATE users SET last_transfer_time = ? WHERE user_id = ? AND chat_id = ?',
                    (current_time, user_id, chat_id))
     conn.commit()
-    a = 3
-    media_paths = config.RATING_PATHS
-
-    if a in media_paths:
-        media_path = media_paths[a]
-        if os.path.exists(media_path):
-            with open(media_path, 'rb') as media:
-                if media_path.endswith(('.jpg', '.jpeg', '.png')):
-                    bot.send_photo(message.chat.id, media)
     bot.send_message(chat_id,
                      f"✔️ @{message.from_user.username} перевел(а) {amount} монет пользователю @{to_username}.")
 
@@ -1377,7 +1390,10 @@ def casino_addmoney(message):
     command_parts = message.text.split(' ', 1)
 
     if len(command_parts) < 2:
-        bot.reply_to(message, "❌ Неверный формат команды! Введите сумму для добавления или снятия.")
+        cursor.execute("SELECT casinobalance FROM casino")
+        result = cursor.fetchone()
+        current_balance = result[0]
+        bot.send_message(message.chat.id, f'🎰 Баланс казино: {current_balance}$')
         return
 
     try:
@@ -1441,20 +1457,6 @@ def casino_addmoney(message):
     conn.commit()
 
     bot.send_message(chat_id, f'🎰✅ Изменено на {amount} монет.\n\n Новый баланс казино: {new_balance} монет.')
-
-
-def send_casino_balance(message):
-    cursor.execute("SELECT casinobalance FROM casino")
-    result = cursor.fetchone()
-    current_balance = result[0]
-    bot.send_message(message.chat.id, f'🎰 Баланс казино: {current_balance}$')
-
-
-def send_gov_balance(message):
-    cursor.execute("SELECT governbalance FROM government")
-    result = cursor.fetchone()
-    current_balance = result[0]
-    bot.reply_to(message, f'🏦 Баланс государства: {current_balance}$')
 
 
 STEAL_DELAY = 5 * 24 * 60 * 60
@@ -1525,6 +1527,5 @@ def ograbit_gosudarstvo(message):
                     if media_path.endswith(('.jpg', '.jpeg', '.png')):
                         bot.send_photo(message.chat.id, media)
         bot.reply_to(message, '🚨 Вас засекли мусора, и вам пришлось дать им взятку размером 20.000$')
-
 
 bot.polling(none_stop=True)
