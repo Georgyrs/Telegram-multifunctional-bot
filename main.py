@@ -255,6 +255,8 @@ def handle_all_messages(message):
         decrease_social_rating(message)
     elif text.startswith('бандит'):
         onehand_bandit(message)
+    elif text.startswith('кости'):
+        dice_casino(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -297,12 +299,14 @@ def respond_help(message):
     response += "• *грабеж государства* – Украсть деньги из бюджета группы.\n"
     response += "• *воркать* - начать скамить\n"
     response += "• *казна <сумма>* - пополнить бюджет\n"
-    response += "• *казино <сумма>* - пополнить бюджет казино\n"
-    response += "• *баланс казино* - проверить баланс казино\n"
-    response += "• *баланс казны* - проверить баланс группы\n"
+    response += "• *казиныч <сумма>* - пополнить бюджет казино\n"
+    response += "• *казиныч* - проверить баланс казино\n"
+    response += "• *казна* - проверить баланс группы\n"
     response += "• *сигнат кто* - предсказатель\n"
     response += "• *дать рис* - повышение соц. рейтинга\n"
     response += "• *забрать рис* - понижение соц. рейтинга\n"
+    response += "• *бандит <ставка>* - однорукий бандит (казино на слотах)\n"
+    response += "• *кости <ставка> <число 1-6>* - казино на кубах\n"
     bot.send_message(message.chat.id, response, parse_mode='Markdown')
 
 
@@ -1605,6 +1609,83 @@ def onehand_bandit(message):
         bot.reply_to(message,
                      f'<b>🤠 Ты проиграл!</b>\n\n<i>💸 Твой баланс теперь:</i> <b>{int(balance_player - stavka)}$</b>',
                      parse_mode='html')
+
+def dice_casino(message):
+    command_parts = message.text.split(' ', 3)
+
+    if len(command_parts) < 3:
+        bot.reply_to(message, "🎲 *Используйте:* _кубы <ставка> <число (1-6)>_", parse_mode='Markdown')
+        return
+
+    try:
+        stavka = int(command_parts[1].strip())
+    except ValueError:
+        bot.reply_to(message, "❌ Ставка должна быть числом.")
+        return
+
+    try:
+        chosen_number = int(command_parts[2].strip())
+        if chosen_number < 1 or chosen_number > 6:
+            bot.reply_to(message, "❌ Число должно быть от 1 до 6.")
+            return
+    except ValueError:
+        bot.reply_to(message, "❌ Число должно быть от 1 до 6.")
+        return
+
+    balance_player = get_balance(message.from_user.id, message.chat.id)
+
+    if stavka > balance_player:
+        bot.reply_to(message, "❌ У вас не хватает денег для этой ставки.")
+        return
+
+    cursor.execute("SELECT casinobalance FROM casino WHERE rowid = 1")
+    result_db = cursor.fetchone()
+
+    if result_db is None:
+        bot.reply_to(message, "Ошибка базы данных!")
+        return
+
+    casino_balance = result_db[0]
+
+    if stavka * 3 > casino_balance:
+        bot.reply_to(message, "❌ Казино не может выплатить такую сумму, уменьшите ставку.")
+        return
+
+    dice_msg = bot.send_dice(message.chat.id, emoji='🎲')
+
+    time.sleep(3)
+
+    rolled_number = dice_msg.dice.value
+
+    bot.reply_to(dice_msg, f"🎲 Кубик показал: <b>{rolled_number}</b>", parse_mode='html')
+
+    if rolled_number == chosen_number:
+        win = stavka * 3
+        update_balance(message.from_user.id, message.chat.id, win)
+        cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (casino_balance - win,))
+        bot.reply_to(message,
+                         f"🤑 Ты выиграл <b>{win}$</b>!\n\n💸 Твой новый баланс: <b>{balance_player + win}$</b>",
+                         parse_mode='html')
+    else:
+        update_balance(message.from_user.id, message.chat.id, -stavka)
+        cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (casino_balance + stavka,))
+        bot.reply_to(message,
+                         f"🤠 Ты проиграл <b>{stavka}$</b>\n\n💸 Твой новый баланс: <b>{balance_player - stavka}$</b>",
+                         parse_mode='html')
+
+# def open_upgrade_shop(message):
+#     user_id = message.from_user.id
+#     markup = InlineKeyboardMarkup(row_width=1)
+#     item1 = InlineKeyboardButton("📈 ", callback_data=f"buy_upgrade_accelerator_{user_id}")
+#     item2 = InlineKeyboardButton("💎 ", callback_data=f"buy_upgrade_business_{user_id}")
+#     item3 = InlineKeyboardButton("😍 ", callback_data=f"buy_upgrade_vpn_{user_id}")
+#     item4 = InlineKeyboardButton("⛏️ ", callback_data=f"buy_upgrade_mining_{user_id}")
+#     item5 = InlineKeyboardButton("🪙 ", callback_data=f"buy_upgrade_vip_{user_id}")
+#
+#     markup.add(item1, item2, item3, item4, item5)
+#
+#     bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n"
+#                                       "\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
 
 print('Бот запущен без ошибок')
 bot.polling(none_stop=True)
