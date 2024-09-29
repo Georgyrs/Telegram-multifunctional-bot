@@ -18,4 +18,14 @@ MEDIA_PATHS = {
     3: r'static/photo_2024-08-23_16-25-24.jpg',
     4: r'static/edit.MP4',
     5: r'static/zenanagore.MP4'
+
+}
+
+RATING_PATHS = {
+    1: r'static/socialcreditwork.png',
+    2: r'static/creditscam.png',
+    3: r'static/15credit.png',
+    4: r'static/robberyrating.png',
+    5: r'static/zerocredit.png'
+
 }
