@@ -8,6 +8,7 @@ WEATHER_API_URL = "https://rusmeteo.net/weather/kaliningrad/14days/"
 
 group_preservatident = 1548224823
 casino_owner = 5515972843
+casino_owner_second_id = 7392365900
 
 WIKIPEDIA_LANGUAGE = 'ru'
 

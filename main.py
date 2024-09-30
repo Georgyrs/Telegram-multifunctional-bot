@@ -9,6 +9,7 @@ import wikipedia
 from bs4 import BeautifulSoup
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import config
+from telebot import types
 bot = telebot.TeleBot(config.BOT_TOKEN)
 wikipedia.set_lang(config.WIKIPEDIA_LANGUAGE)
 
@@ -259,6 +260,10 @@ def handle_all_messages(message):
         dice_casino(message)
     elif text.startswith('монетка'):
         coin_flip(message)
+    elif text == 'казино':
+        respond_casino(message)
+    elif text.startswith('башня'):
+        tower_game(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -310,6 +315,17 @@ def respond_help(message):
     response += "• *бандит <ставка>* - однорукий бандит (казино на слотах)\n"
     response += "• *кости <ставка> <число 1-6>* - казино на кубах\n"
     response += "• *монетка <ставка> <орел или решка>* - орел или решка\n"
+    response += "• *башня <ставка>* - казиношная игра башня\n"
+    bot.send_message(message.chat.id, response, parse_mode='Markdown')
+
+def respond_casino(message):
+    response = "🪩 *Команды казино:*\n\n"
+    response += "*💎 рулетка <ставка> <цвет>* - классическая рулетка! 🔥\n"
+    response += "*🎰 бандит <ставка>* - однорукий бандит, slot machine! 🔥\n"
+    response += "*🎲 кости <ставка> <число 1-6>* - казино на костях, Х5 в случае выигрыша! 🔥\n"
+    response += "*🪙 монетка <ставка> <орел или решка>* - орел или решка! 🔥\n"
+    response += "*🏰 башня <ставка>* - игра башня! 🔥\n"
+
     bot.send_message(message.chat.id, response, parse_mode='Markdown')
 
 
@@ -1201,8 +1217,9 @@ def classic_roulette(message):
             new_balance = current_balance - winnings
             cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
 
-            bot.reply_to(prev_message, f"🎉 _@{message.from_user.username}, поздравляем!_ Выпал {result_emoji} \n\n**💎 Ваш выигрыш: {winnings} 💰**",
-                             parse_mode='Markdown')
+            bot.reply_to(prev_message,
+                         f"🎉 _@{message.from_user.username}, поздравляем!_ Выпал {result_emoji} \n\n**💎 Ваш выигрыш: {winnings} 💰**",
+                         parse_mode='Markdown')
         else:
             # Проигрыш
             update_balance(user_id, chat_id, -stavka)
@@ -1244,7 +1261,7 @@ def signat_who(message):
     bot.send_message(message.chat.id, response_text)
 
 
-TRANSFER_DELAY = 60 * 60
+TRANSFER_DELAY = 60 * 10
 
 
 def ensure_last_transfer_time_column_exists():
@@ -1402,10 +1419,16 @@ def casino_addmoney(message):
     command_parts = message.text.split(' ', 1)
 
     if len(command_parts) < 2:
-        cursor.execute("SELECT casinobalance FROM casino")
-        result = cursor.fetchone()
-        current_balance = result[0]
-        bot.send_message(message.chat.id, f'🎰 Баланс казино: {current_balance}$')
+        if user_id == config.casino_owner:
+            cursor.execute("SELECT casinobalance FROM casino")
+            result = cursor.fetchone()
+            current_balance = result[0]
+
+            markup = InlineKeyboardMarkup()
+            button = InlineKeyboardButton("🍑 Посмотреть баланс", callback_data=f"see_balance_{int(current_balance)}")
+            markup.add(button)
+
+            bot.send_message(chat_id, f'🎰 Посмотреть баланс казино можно по кнопке ниже.', reply_markup=markup)
         return
 
     try:
@@ -1469,6 +1492,31 @@ def casino_addmoney(message):
     conn.commit()
 
     bot.send_message(chat_id, f'🎰✅ Изменено на {amount} монет.\n\n Новый баланс казино: {new_balance} монет.')
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('see_balance_'))
+def close_balance(call):
+    if call.message.from_user.id == config.casino_owner_second_id:
+        bot.answer_callback_query(call.id, f"🍑 Баланс казиныча: {call.data[12:]}$", show_alert=True)
+
+    else:
+        prikol_list = [
+            '🍆 Ты мальчик-гей?',
+            '🤠 Гений?',
+            '🤠 Наталья морская пехота щас тебя придушит',
+            '🔥 Алкогольный блондин, на весь район такой один...',
+            '😟 И каждый день мы встречаемся в инстаграме...',
+            '💘 Rhytm Nation',
+            r"🎲 Baby squirell you's a s*xy motherf*cker",
+            r"💎 Доброе утро страна",
+            r"👉 Россия вспрянет ото сна, и на обломках самовлятья напишут наши имена",
+            r"🍑 у России три пути",
+            r"😟 Знаещь ли ты, вдоль ночных дорог...",
+            r"🎖️ Marsz, Marsz Da'browski...",
+            r"📌 Нажми на кнопку - получишь результат, твоя мечта осуществится",
+        ]
+
+        prikol = random.choice(prikol_list)
+        bot.answer_callback_query(call.id, prikol, show_alert=False)
 
 
 STEAL_DELAY = 5 * 24 * 60 * 60
@@ -1575,7 +1623,7 @@ def onehand_bandit(message):
 
     time.sleep(1)
 
-    emojis = ['🍒', '🍋', '🍌', '🍀', '🍇']
+    emojis = ['🍒', '🍋', '🍌', '🍀', '🍇', '🍊']
 
     result = [random.choice(emojis) for _ in range(3)]
 
@@ -1679,7 +1727,7 @@ def dice_casino(message):
     bot.reply_to(dice_msg, f"🎲 Кубик показал: <b>{rolled_number}</b>", parse_mode='html')
 
     if rolled_number == chosen_number:
-        win = stavka * 4
+        win = stavka * 5
         update_balance(message.from_user.id, message.chat.id, win)
         cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (casino_balance - win,))
         bot.reply_to(message,
@@ -1699,7 +1747,7 @@ def coin_flip(message):
         command_parts = message.text.split(' ', 2)
 
         if len(command_parts) < 3:
-            bot.reply_to(message, "💰 *Используйте:* _монета <ставка> <орел/решка>_", parse_mode='Markdown')
+            bot.reply_to(message, "💰 *Используй:* _монетка <ставка> <орел/решка>_", parse_mode='Markdown')
             return
 
         stavka = command_parts[1].strip().lower()
@@ -1707,7 +1755,7 @@ def coin_flip(message):
         balance_player = get_balance(user_id, chat_id)
 
         if not stavka.isdigit():
-            bot.reply_to(message, "⚠️ _Пожалуйста, укажите целое число!_", parse_mode='Markdown')
+            bot.reply_to(message, "⚠️ _Пожалуйста, укажи целое число!_", parse_mode='Markdown')
             return
 
         stavka = float(stavka)
@@ -1725,7 +1773,7 @@ def coin_flip(message):
             return
 
         if chosen_side not in ['орел', 'решка']:
-            bot.reply_to(message, "⚠️ _Выберите: орел или решка!_", parse_mode='Markdown')
+            bot.reply_to(message, "⚠️ _Выбери: орел или решка!_", parse_mode='Markdown')
             return
 
         anim = bot.reply_to(message, '🪙')
@@ -1741,7 +1789,7 @@ def coin_flip(message):
             bot.reply_to(message, f'🪙 Выпала {flip_result}!')
 
         if flip_result == chosen_side:
-            winnings = stavka * 2
+            winnings = stavka
             update_balance(user_id, chat_id, +winnings)
 
             cursor.execute("SELECT casinobalance FROM casino")
@@ -1768,6 +1816,105 @@ def coin_flip(message):
 
     except:
         pass
+
+TOTAL_FLOORS = 5
+game_sessions = {}
+
+def tower_game(message):
+    try:
+        chat_id = message.chat.id
+        user_id = message.from_user.id
+        command_parts = message.text.split(' ', 1)
+
+        if len(command_parts) < 2:
+            bot.reply_to(message, "🏰 *Используйте:* _башня <ставка>_", parse_mode='Markdown')
+            return
+
+        stavka = command_parts[1].strip().lower()
+        balance_player = get_balance(user_id, chat_id)
+
+        if not stavka.isdigit():
+            bot.reply_to(message, "⚠️ _Пожалуйста, укажите целое число!_", parse_mode='Markdown')
+            return
+
+        stavka = float(stavka)
+
+        if stavka < 10:
+            bot.reply_to(message, "⚠️ _Минимальная ставка — 10!_", parse_mode='Markdown')
+            return
+
+        if stavka > 5000:
+            bot.reply_to(message, "⚠️ _Максимальная ставка — 5000!_", parse_mode='Markdown')
+            return
+
+        if stavka > balance_player:
+            bot.reply_to(message, "❌ _Без денег не пускаем!_", parse_mode='Markdown')
+            return
+
+        game_sessions[user_id] = {
+            'stavka': stavka,
+            'current_floor': 1,
+            'winnings': stavka,
+            'chat_id': chat_id
+        }
+
+        send_tower_buttons(chat_id, user_id, message)
+
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Произошла ошибка: {str(e)}")
+
+def send_tower_buttons(chat_id, user_id, message):
+    markup = types.InlineKeyboardMarkup()
+    left_button = types.InlineKeyboardButton('🍆 Левый', callback_data=f'tower_left_{user_id}')
+    right_button = types.InlineKeyboardButton('🍑 Правый', callback_data=f'tower_right_{user_id}')
+    markup.add(left_button, right_button)
+
+    bot.reply_to(message, f"🏰 Этаж {game_sessions[user_id]['current_floor']}! Выбери путь: 🍆 или 🍑?", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('tower_'))
+def tower_callback(call):
+    try:
+        user_id = int(call.data.split('_')[-1])
+        chat_id = game_sessions[user_id]['chat_id']
+        current_floor = game_sessions[user_id]['current_floor']
+        stavka = game_sessions[user_id]['stavka']
+        winnings = game_sessions[user_id]['winnings']
+
+        correct_path = random.choice(['левый', 'правый'])
+
+        if ('left' in call.data and correct_path == 'левый') or ('right' in call.data and correct_path == 'правый'):
+            current_floor += 1
+            winnings *= 1.5
+            game_sessions[user_id]['current_floor'] = current_floor
+            game_sessions[user_id]['winnings'] = winnings
+
+            if current_floor > TOTAL_FLOORS:
+                bot.edit_message_text(f"🎉 Ты прошел всю башню и, к сожалению, выиграл {winnings}$!", chat_id, call.message.message_id)
+                update_balance(user_id, chat_id, +winnings)
+                cursor.execute("SELECT casinobalance FROM casino")
+                result = cursor.fetchone()
+                if result:
+                    current_balance = result[0]
+                    new_balance = current_balance - winnings
+                    cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+                del game_sessions[user_id]
+            else:
+                bot.edit_message_text(f"✅ Правильно! Ты на этаже {current_floor}.\n🍑 Текущий выигрыш: {winnings}$.\n\n🤠 Выбери путь на следующем этаже: 🍆 или 🍑.", chat_id, call.message.message_id)
+                send_tower_buttons(chat_id, user_id)
+        else:
+            bot.edit_message_text(f"❌ Неверный выбор! Ты упал с башни на этаже {current_floor}.\n\n🍆 Ты потерял {stavka}$.", chat_id, call.message.message_id)
+            update_balance(user_id, chat_id, -stavka)
+
+            cursor.execute("SELECT casinobalance FROM casino")
+            result = cursor.fetchone()
+            if result:
+                current_balance = result[0]
+                new_balance = current_balance + stavka
+                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+            del game_sessions[user_id]
+
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"❌ Произошла ошибка: {str(e)}")
 
 print('Бот запущен без ошибок')
 bot.polling(none_stop=True)
