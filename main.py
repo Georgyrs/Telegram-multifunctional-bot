@@ -1126,13 +1126,14 @@ def steal_money(message):
 
 def classic_roulette(message):
     try:
-        colors = {'красный': '🔴', 'черный': '⬛️', 'зеленый': '🟩'}
+        colors = ['🔴', '⚫', '🟢']
         chat_id = message.chat.id
         user_id = message.from_user.id
         command_parts = message.text.split(' ', 2)
 
         if len(command_parts) < 3:
-            bot.reply_to(message, "🎰 *Используйте:* _рулетка <ставка> <красный, черный, зеленый>_", parse_mode='Markdown')
+            bot.reply_to(message, "🎰 *Используйте:* _рулетка <ставка> <красный, черный, зеленый>_",
+                         parse_mode='Markdown')
             return
 
         stavka = command_parts[1].strip().lower()
@@ -1157,63 +1158,62 @@ def classic_roulette(message):
             bot.reply_to(message, "❌ _Без денег не пускаем!_", parse_mode='Markdown')
             return
 
-        if chosen_color not in colors:
+        if chosen_color not in ['красный', 'черный', 'зеленый']:
             bot.reply_to(message, "⚠️ _Выберите цвет: красный, черный, зеленый!_", parse_mode='Markdown')
             return
 
-        pierdole = random.randint(1, 100)
-        if pierdole == 1 or pierdole == 2:
-            random_color = 'зеленый'
-        elif pierdole in range(3, 51):
-            random_color = 'красный'
+        random_number = random.randint(1, 100)
+        if random_number <= 2:
+            result_color = 'зеленый'
+        elif random_number <= 51:
+            result_color = 'красный'
         else:
-            random_color = 'черный'
+            result_color = 'черный'
+
+        roulette_sequence = [colors[random.randint(0, 2)] for _ in range(8)]
+        result_emoji = colors[{'красный': 0, 'черный': 1, 'зеленый': 2}[result_color]]
+        roulette_sequence.append(result_emoji)
 
         prev_message = None
 
-        for _ in range(3):
-            for color_emoji in colors.values():
+        for _ in range(len(roulette_sequence)):
+            current_sequence = roulette_sequence[-1:] + roulette_sequence[:-1]
 
-                if prev_message:
-                    bot.delete_message(chat_id, prev_message.message_id)
+            final_display = ''.join(current_sequence) + "\nㅤㅤㅤㅤㅤㅤㅤㅤㅤㅤ🔺"
 
-                sent_message = bot.send_message(chat_id, color_emoji)
+            if prev_message:
+                bot.edit_message_text(final_display, chat_id, prev_message.message_id)
+            else:
+                prev_message = bot.reply_to(message, final_display)
 
-                prev_message = sent_message
+            roulette_sequence = current_sequence
+            time.sleep(1)
 
-                time.sleep(1)
-
-        if prev_message:
-            bot.delete_message(chat_id, prev_message.message_id)
-
-        bot.send_message(chat_id, f"{colors[random_color]}")
-
-        if random_color == chosen_color:
-            winnings = stavka * (10 if random_color == 'зеленый' else 2)
+        if result_color == chosen_color:
+            winnings = stavka * (3 if result_color == 'зеленый' else 2)
             update_balance(user_id, chat_id, +winnings)
-            cursor.execute("SELECT casinobalance FROM casino")
-            result = cursor.fetchone()
 
-            if result:
-                current_balance = result[0]
-                new_balance = current_balance - winnings
-                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
-            bot.send_message(chat_id, f"🎉 _Поздравляем!_ Выпал {colors[random_color]} \n**Ваш выигрыш: {winnings} 💰",
+            cursor.execute("SELECT casinobalance FROM casino")
+            current_balance = cursor.fetchone()[0]
+            new_balance = current_balance - winnings
+            cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+
+            bot.reply_to(prev_message, f"🎉 _@{message.from_user.username}, поздравляем!_ Выпал {result_emoji} \n\n**💎 Ваш выигрыш: {winnings} 💰**",
                              parse_mode='Markdown')
         else:
+            # Проигрыш
             update_balance(user_id, chat_id, -stavka)
 
             cursor.execute("SELECT casinobalance FROM casino")
-            result = cursor.fetchone()
+            current_balance = cursor.fetchone()[0]
+            new_balance = current_balance + stavka
+            cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
 
-            if result:
-                current_balance = result[0]
-                new_balance = current_balance + stavka
-                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
-            bot.send_message(chat_id, f"😞 _Увы! Выпал {colors[random_color]}_\n**Вы проиграли: {stavka} 💸",
+            bot.reply_to(prev_message, f"😞 _Увы! Выпал {result_emoji}_\n\n**🤠 Вы проиграли: {stavka} 💸**",
                              parse_mode='Markdown')
-    except:
-        pass
+
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Произошла ошибка: {str(e)}")
 
 
 def signat_who(message):
@@ -1550,6 +1550,10 @@ def onehand_bandit(message):
         bot.reply_to(message, "❌ Ставка должна быть числом.")
         return
 
+    if stavka == 0 or stavka < 0:
+        bot.reply_to(message, "❌ Ставка должна быть натуральным числом.")
+        return
+
     if stavka > get_balance(message.from_user.id, message.chat.id):
         bot.reply_to(message, "❌ У вас не хватает денег")
         return
@@ -1585,13 +1589,13 @@ def onehand_bandit(message):
     current_balance = result_db[0]
 
     if result[0] == result[1] == result[2]:
-        win = int(stavka * 2)
+        win = int(stavka * 4)
         update_balance(message.from_user.id, message.chat.id, +win)
 
         cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (current_balance - win,))
 
         bot.reply_to(message,
-                     f'<b>🤑 Ты выиграл ДЖЕКПОТ x3!</b>\n\n<i>💸 Твой баланс теперь:</i> <b>{int(balance_player + win)}$</b>',
+                     f'<b>🤑 Ты выиграл ДЖЕКПОТ x5!</b>\n\n<i>💸 Твой баланс теперь:</i> <b>{int(balance_player + win)}$</b>',
                      parse_mode='html')
     elif result[0] == result[1] or result[1] == result[2] or result[0] == result[2]:
         update_balance(message.from_user.id, message.chat.id, +stavka)
@@ -1614,13 +1618,17 @@ def dice_casino(message):
     command_parts = message.text.split(' ', 3)
 
     if len(command_parts) < 3:
-        bot.reply_to(message, "🎲 *Используйте:* _кубы <ставка> <число (1-6)>_", parse_mode='Markdown')
+        bot.reply_to(message, "🎲 *Используйте:* _кости <ставка> <число (1-6)>_", parse_mode='Markdown')
         return
 
     try:
         stavka = int(command_parts[1].strip())
     except ValueError:
         bot.reply_to(message, "❌ Ставка должна быть числом.")
+        return
+
+    if stavka == 0 or stavka < 0:
+        bot.reply_to(message, "❌ Ставка должна быть натуральным числом.")
         return
 
     try:
@@ -1653,7 +1661,7 @@ def dice_casino(message):
 
     dice_msg = bot.send_dice(message.chat.id, emoji='🎲')
 
-    time.sleep(3)
+    time.sleep(3.7)
 
     rolled_number = dice_msg.dice.value
 
@@ -1673,19 +1681,19 @@ def dice_casino(message):
                          f"🤠 Ты проиграл <b>{stavka}$</b>\n\n💸 Твой новый баланс: <b>{balance_player - stavka}$</b>",
                          parse_mode='html')
 
-# def open_upgrade_shop(message):
-#     user_id = message.from_user.id
-#     markup = InlineKeyboardMarkup(row_width=1)
-#     item1 = InlineKeyboardButton("📈 ", callback_data=f"buy_upgrade_accelerator_{user_id}")
-#     item2 = InlineKeyboardButton("💎 ", callback_data=f"buy_upgrade_business_{user_id}")
-#     item3 = InlineKeyboardButton("😍 ", callback_data=f"buy_upgrade_vpn_{user_id}")
-#     item4 = InlineKeyboardButton("⛏️ ", callback_data=f"buy_upgrade_mining_{user_id}")
-#     item5 = InlineKeyboardButton("🪙 ", callback_data=f"buy_upgrade_vip_{user_id}")
-#
-#     markup.add(item1, item2, item3, item4, item5)
-#
-#     bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин!</b>\n"
-#                                       "\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
+def open_upgrade_shop(message):
+    user_id = message.from_user.id
+    markup = InlineKeyboardMarkup(row_width=1)
+    item1 = InlineKeyboardButton("📈 Майнинг", callback_data=f"buy_upgrade_accelerator_{user_id}")
+    item2 = InlineKeyboardButton("💎 ", callback_data=f"buy_upgrade_business_{user_id}")
+    item3 = InlineKeyboardButton("😍 ", callback_data=f"buy_upgrade_vpn_{user_id}")
+    item4 = InlineKeyboardButton("⛏️ ", callback_data=f"buy_upgrade_mining_{user_id}")
+    item5 = InlineKeyboardButton("🪙 ", callback_data=f"buy_upgrade_vip_{user_id}")
+
+    markup.add(item1, item2, item3, item4, item5)
+
+    bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин улучшений!</b>\n"
+                                      "\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
 
 print('Бот запущен без ошибок')
 bot.polling(none_stop=True)
