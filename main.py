@@ -1692,20 +1692,6 @@ def dice_casino(message):
                          f"🤠 Ты проиграл <b>{stavka}$</b>\n\n💸 Твой новый баланс: <b>{int(balance_player - stavka)}$</b>",
                          parse_mode='html')
 
-def open_upgrade_shop(message):
-    user_id = message.from_user.id
-    markup = InlineKeyboardMarkup(row_width=1)
-    item1 = InlineKeyboardButton("📈 Майнинг", callback_data=f"buy_upgrade_accelerator_{user_id}")
-    item2 = InlineKeyboardButton("💎 ", callback_data=f"buy_upgrade_business_{user_id}")
-    item3 = InlineKeyboardButton("😍 ", callback_data=f"buy_upgrade_vpn_{user_id}")
-    item4 = InlineKeyboardButton("⛏️ ", callback_data=f"buy_upgrade_mining_{user_id}")
-    item5 = InlineKeyboardButton("🪙 ", callback_data=f"buy_upgrade_vip_{user_id}")
-
-    markup.add(item1, item2, item3, item4, item5)
-
-    bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин улучшений!</b>\n"
-                                      "\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
-
 def coin_flip(message):
     try:
         chat_id = message.chat.id
