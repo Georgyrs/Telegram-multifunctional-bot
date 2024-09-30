@@ -1624,7 +1624,7 @@ def onehand_bandit(message):
 
     time.sleep(1)
 
-    emojis = ['🍒', '🍋', '🍌', '🍀', '🍇', '🍊']
+    emojis = ['🍒', '🍋', '🍌', '🍀', '🍇', '🍊', '🍓', '🍉', '🍅', '🍹', '🍕', '🍰', '🥕']
 
     result = [random.choice(emojis) for _ in range(3)]
 
