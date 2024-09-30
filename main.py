@@ -257,6 +257,8 @@ def handle_all_messages(message):
         onehand_bandit(message)
     elif text.startswith('кости'):
         dice_casino(message)
+    elif text.startswith('монетка'):
+        coin_flip(message)
 
     if is_vip:
         if text.startswith('випкоманда 1'):
@@ -307,6 +309,7 @@ def respond_help(message):
     response += "• *забрать рис* - понижение соц. рейтинга\n"
     response += "• *бандит <ставка>* - однорукий бандит (казино на слотах)\n"
     response += "• *кости <ставка> <число 1-6>* - казино на кубах\n"
+    response += "• *монетка <ставка> <орел или решка>* - орел или решка\n"
     bot.send_message(message.chat.id, response, parse_mode='Markdown')
 
 
@@ -1558,6 +1561,10 @@ def onehand_bandit(message):
         bot.reply_to(message, "❌ У вас не хватает денег")
         return
 
+    if stavka < 10:
+        bot.reply_to(message, '🫵 Фига ты бомж, давай хотя бы десюнчик)')
+        return
+
     if stavka > 10000:
         bot.reply_to(message, "🫵 Мы тут не лудоманы, давай на 10к закругляйся!")
         return
@@ -1659,6 +1666,10 @@ def dice_casino(message):
         bot.reply_to(message, "🫵 Лудомании скажем НЕТ! Уменьши ставку до 5000.")
         return
 
+    if stavka < 10:
+        bot.reply_to(message, '🫵 Фига ты бомж, давай хотя бы десюнчик)')
+        return
+
     dice_msg = bot.send_dice(message.chat.id, emoji='🎲')
 
     time.sleep(3.7)
@@ -1668,17 +1679,17 @@ def dice_casino(message):
     bot.reply_to(dice_msg, f"🎲 Кубик показал: <b>{rolled_number}</b>", parse_mode='html')
 
     if rolled_number == chosen_number:
-        win = stavka * 3
+        win = stavka * 4
         update_balance(message.from_user.id, message.chat.id, win)
         cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (casino_balance - win,))
         bot.reply_to(message,
-                         f"🤑 Ты выиграл <b>{win}$</b>!\n\n💸 Твой новый баланс: <b>{balance_player + win}$</b>",
+                         f"🤑 Ты выиграл <b>{win}$</b>!\n\n💸 Твой новый баланс: <b>{int(balance_player + win)}$</b>",
                          parse_mode='html')
     else:
         update_balance(message.from_user.id, message.chat.id, -stavka)
         cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (casino_balance + stavka,))
         bot.reply_to(message,
-                         f"🤠 Ты проиграл <b>{stavka}$</b>\n\n💸 Твой новый баланс: <b>{balance_player - stavka}$</b>",
+                         f"🤠 Ты проиграл <b>{stavka}$</b>\n\n💸 Твой новый баланс: <b>{int(balance_player - stavka)}$</b>",
                          parse_mode='html')
 
 def open_upgrade_shop(message):
@@ -1694,6 +1705,83 @@ def open_upgrade_shop(message):
 
     bot.send_message(message.chat.id, "<b>🛒 Добро пожаловать в магазин улучшений!</b>\n"
                                       "\n<i>👇Выберите улучшение:</i>", reply_markup=markup, parse_mode='html')
+
+def coin_flip(message):
+    try:
+        chat_id = message.chat.id
+        user_id = message.from_user.id
+        command_parts = message.text.split(' ', 2)
+
+        if len(command_parts) < 3:
+            bot.reply_to(message, "💰 *Используйте:* _монета <ставка> <орел/решка>_", parse_mode='Markdown')
+            return
+
+        stavka = command_parts[1].strip().lower()
+        chosen_side = command_parts[2].strip().lower()
+        balance_player = get_balance(user_id, chat_id)
+
+        if not stavka.isdigit():
+            bot.reply_to(message, "⚠️ _Пожалуйста, укажите целое число!_", parse_mode='Markdown')
+            return
+
+        stavka = float(stavka)
+
+        if stavka < 10:
+            bot.reply_to(message, "⚠️ _Минимальная ставка — 10!_", parse_mode='Markdown')
+            return
+
+        if stavka > 5000:
+            bot.reply_to(message, "⚠️ _Максимальная ставка — 5000!_", parse_mode='Markdown')
+            return
+
+        if stavka > balance_player:
+            bot.reply_to(message, "❌ _Без денег не пускаем!_", parse_mode='Markdown')
+            return
+
+        if chosen_side not in ['орел', 'решка']:
+            bot.reply_to(message, "⚠️ _Выберите: орел или решка!_", parse_mode='Markdown')
+            return
+
+        anim = bot.reply_to(message, '🪙')
+
+        flip_result = random.choice(['орел', 'решка'])
+
+        time.sleep(1.8)
+
+        bot.delete_message(chat_id, anim.message_id)
+        if flip_result == 'орел':
+            bot.reply_to(message, f"🪙 Выпал {flip_result}!")
+        else:
+            bot.reply_to(message, f'🪙 Выпала {flip_result}!')
+
+        if flip_result == chosen_side:
+            winnings = stavka * 2
+            update_balance(user_id, chat_id, +winnings)
+
+            cursor.execute("SELECT casinobalance FROM casino")
+            result = cursor.fetchone()
+
+            if result:
+                current_balance = result[0]
+                new_balance = current_balance - winnings
+                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+
+            bot.send_message(chat_id, f"<i>🎉 @{message.from_user.username}, поздравляем!</i>\n\n💎 <b>Ты выиграл: {int(winnings)}$</b>", parse_mode='html')
+        else:
+            update_balance(user_id, chat_id, -stavka)
+
+            cursor.execute("SELECT casinobalance FROM casino")
+            result = cursor.fetchone()
+
+            if result:
+                current_balance = result[0]
+                new_balance = current_balance + stavka
+                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+
+            bot.send_message(chat_id, f"<i>🤠 @{message.from_user.username}, к сожалению, ты проиграл!</i>\n\n💸 <b>Ты проиграл: {int(stavka)}$</b>", parse_mode='html')
+
+    except:
+        pass
 
 print('Бот запущен без ошибок')
 bot.polling(none_stop=True)
