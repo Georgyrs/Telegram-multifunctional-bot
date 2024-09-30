@@ -1209,7 +1209,7 @@ def classic_roulette(message):
             new_balance = current_balance + stavka
             cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
 
-            bot.reply_to(prev_message, f"😞 _Увы! Выпал {result_emoji}_\n\n**🤠 Вы проиграли: {stavka} 💸**",
+            bot.reply_to(prev_message, f"_😞 @{message.from_user.username}, увы! Выпал {result_emoji}_\n\n**🤠 Вы проиграли: {stavka} 💸**",
                              parse_mode='Markdown')
 
     except Exception as e:
