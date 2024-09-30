@@ -1455,16 +1455,20 @@ def casino_addmoney(message):
     cursor.execute("SELECT casinobalance FROM casino")
     result = cursor.fetchone()
 
+
     if result:
         current_balance = result[0]
+
+        cas_bal_markup = InlineKeyboardMarkup()
+        item1 = types.InlineKeyboardButton('🍑 Баланс казиныча', callback_data=f"see_balance_{int(current_balance)}")
+        cas_bal_markup.add(item1)
+
         if amount < 0:
             if abs(amount) > current_balance:
-                bot.reply_to(message, f'🫵 Твоё государство обанкротится, если ты снимешь столько бабла, коррупционер!\n'
-                                      f'\n💎 На счету у государства: {current_balance}')
+                bot.reply_to(message, f'🫵 Твоё казино обанкротится, если ты снимешь столько бабла, коррупционер!\n\n👇 Посмотреть баланс казино можно по кнопке ниже:', reply_markup=cas_bal_markup)
                 return
             elif current_balance + amount < 0:
-                bot.reply_to(message, f'🫵 Баланс казино не может быть отрицательным.\n\n💎'
-                                      f' На счету у государства: {current_balance}')
+                bot.reply_to(message, f'🫵 Баланс казино не может быть отрицательным.\n\n💎 Баланс казино можно посмотреть по кнопке ниже:', reply_markup=cas_bal_markup)
                 return
             else:
                 new_balance = current_balance + amount
@@ -1492,10 +1496,15 @@ def casino_addmoney(message):
 
     conn.commit()
 
-    bot.send_message(chat_id, f'🎰✅ Изменено на {amount} монет.\n\n Новый баланс казино: {new_balance} монет.')
+    current_balance = result[0]
+    cas_bal_markup = InlineKeyboardMarkup()
+    item1 = types.InlineKeyboardButton('🍑 Баланс казиныча', callback_data=f"see_balance_{int(current_balance)}")
+    cas_bal_markup.add(item1)
+
+    bot.send_message(chat_id, f'🎰✅ Изменено на {amount} монет.\n\n🍉 Новый баланс казиныча можно посмотреть по кнопке ниже:', reply_markup=cas_bal_markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('see_balance_'))
-def close_balance(call):
+def show_casino_balance(call):
     if call.message.from_user.id == config.casino_owner_second_id:
         bot.answer_callback_query(call.id, f"🍑 Баланс казиныча: {call.data[12:]}$", show_alert=True)
 
@@ -1901,7 +1910,7 @@ def tower_callback(call):
                 del game_sessions[user_id]
             else:
                 bot.edit_message_text(f"✅ Правильно! Ты на этаже {current_floor}.\n🍑 Текущий выигрыш: {winnings}$.\n\n🤠 Выбери путь на следующем этаже: 🍆 или 🍑.", chat_id, call.message.message_id)
-                send_tower_buttons(chat_id, user_id)
+                send_tower_buttons(chat_id, user_id, call.message)
         else:
             bot.edit_message_text(f"❌ Неверный выбор! Ты упал с башни на этаже {current_floor}.\n\n🍆 Ты потерял {stavka}$.", chat_id, call.message.message_id)
             update_balance(user_id, chat_id, -stavka)
