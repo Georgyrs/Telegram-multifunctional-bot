@@ -1981,5 +1981,5 @@ def pipisa(message):
     conn.commit()
 
 
-print('Бот запущен без ошибок')
+print('Бот запущен без ошибок1')
 bot.polling(none_stop=True)
