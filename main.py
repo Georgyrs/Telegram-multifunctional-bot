@@ -21,7 +21,6 @@ def get_time():
 
 current_date = get_time()
 
-
 def get_weather():
     url = config.WEATHER_URL
     response = requests.get(url)
@@ -80,6 +79,11 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
                     social_rating INTEGER DEFAULT 50
                 )''')
 
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                    chat_id INTEGER,
+                    user_id INTEGER,
+                    pipisa INTEGER DEFAULT 0
+                )''')
 cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
                     job_name TEXT,
                     min_payment INTEGER,
@@ -270,8 +274,8 @@ def handle_all_messages(message):
         tower_game(message)
 
     if is_vip:
-        if text.startswith('випкоманда 1'):
-            respond_start(message)
+        if text.startswith('пиписа'):
+            pipisa(message)
         elif text.startswith('випкоманда 2'):
             respond_help(message)
         elif text.startswith('випкоманда 3'):
@@ -339,10 +343,19 @@ def stata(message):
     bought_items = ', '.join([item[0] for item in results]) if results else '❌ Нет купленных товаров'
     balance = round(get_balance(user_id, chat_id))
     socrating = round(get_social_rating(user_id, chat_id))
-    bot.send_message(chat_id, f'*💎 Статистика пользователя @{user_nickname}:*\n'
-                              f'💰 _Баланс:_ *{balance}*\n\n'
-                              f'🪪 _Социальный рейтинг:_ *{socrating}*\n\n'
-                              f'🛒 _Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
+    cursor.execute("SELECT 1 FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = 'VIP'",
+                   (user_id, chat_id))
+    if cursor.fetchone():
+        bot.send_message(chat_id, f'*👑 Статистика VIP пользователя @{user_nickname}:*\n'
+                                  f'💰 _Баланс:_ *{balance}*\n\n'
+                                  f'🪪 _Социальный рейтинг:_ *{socrating}*\n\n'
+                                  f'🛒 _Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
+
+    else:
+        bot.send_message(chat_id, f'*😑 Статистика пользователя @{user_nickname}:*\n'
+                                  f'💰 _Баланс:_ *{balance}*\n\n'
+                                  f'🪪 _Социальный рейтинг:_ *{socrating}*\n\n'
+                                  f'🛒 _Купленные товары:_ *{bought_items}*', parse_mode='Markdown')
 
 
 def respond_ship(message):
@@ -524,6 +537,16 @@ def rp_commands(message):
         'Это что-то новенькое!🙀',
         'Ух, накал страстей!🔥'
     ]
+
+    vip_phrases = [
+        'Тебе бы в кино сниматься!🎬',
+        'VIP-пользователи всегда в центре внимания!👑',
+        'Кажется, кто-то с VIP статусом слишком уверен в себе!✨',
+        'VIP не делает ошибок, это было специально!💎',
+        'Неплохой ход, но с VIP это звучит лучше!🔥',
+        'Как ты умеешь зажечь, с таким-то VIP статусом!🔥'
+    ]
+
     random_choice = random.choice(random_phrase)
     command_parts = message.text.split(' ', 2)
 
@@ -536,6 +559,13 @@ def rp_commands(message):
     user = command_parts[2].strip()
     usercall = message.from_user
     usercalled = usercall.username
+
+    chat_id = message.chat.id
+    user_id = usercall.id
+
+    if has_vip(user_id, chat_id):
+        random_choice = random.choice(vip_phrases)
+        action = f"⭐ {action}"
 
     if len(action) >= 2:
         last_two = action[-2:]
@@ -572,6 +602,16 @@ def update_balance(user_id, chat_id, amount):
         cursor.execute('INSERT INTO users (chat_id, user_id, balance) VALUES (?, ?, ?)', (chat_id, user_id, amount))
     conn.commit()
 
+def update_pipisa(user_id, chat_id, amount):
+    cursor.execute('SELECT pipisa FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+    if result:
+        new_balance = result[0] + amount
+        cursor.execute('UPDATE users SET pipisa = ? WHERE user_id = ? AND chat_id = ?',
+                       (new_balance, user_id, chat_id))
+    else:
+        cursor.execute('INSERT INTO users (chat_id, user_id, pipisa) VALUES (?, ?, ?)', (chat_id, user_id, amount))
+    conn.commit()
 
 def update_rating(user_id, chat_id, amount):
     cursor.execute('SELECT social_rating FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
@@ -732,13 +772,23 @@ cooldowns = {}
 cooldowns_steal = {}
 
 
+def has_vip(user_id, chat_id):
+    cursor.execute("SELECT 1 FROM user_upgrades WHERE user_id = ? AND chat_id = ? AND upgrade_name = 'VIP'", (user_id, chat_id))
+    return cursor.fetchone() is not None
+
+
 def can_work(user_id, chat_id):
     key = (user_id, chat_id)
     last_work_time = cooldowns.get(key)
     current_time = time.time()
 
-    if last_work_time and (current_time - last_work_time) < 7200:
-        return False, 7200 - (current_time - last_work_time)
+    if has_vip(user_id, chat_id):
+        cooldown_duration = 3600
+    else:
+        cooldown_duration = 7200
+
+    if last_work_time and (current_time - last_work_time) < cooldown_duration:
+        return False, cooldown_duration - (current_time - last_work_time)
 
     cooldowns[key] = current_time
     return True, 0
@@ -966,16 +1016,10 @@ def init_upgrades():
         ("Бизнес", 2000),
         ("VPN", 1100),
         ("Майнинг", 1400),
-        ("VIP", 15000)
+        ("VIP", 50000)
     ]
 
-    cursor.executemany('INSERT INTO upgrades (upgrade_name, cost) VALUES (?, ?)', upgrades)
-    conn.commit()
-
-
 init_upgrades()
-
-
 def buy_upgrade(user_id, chat_id, upgrade_name):
     cursor.execute('SELECT cost FROM upgrades WHERE upgrade_name = ?', (upgrade_name,))
     cost = cursor.fetchone()
@@ -1018,7 +1062,7 @@ def openshop(message):
     item2 = InlineKeyboardButton("💎 Бизнес - 2000 монет", callback_data=f"buy_upgrade_business_{user_id}")
     item3 = InlineKeyboardButton("😍 VPN - 1100 монет", callback_data=f"buy_upgrade_vpn_{user_id}")
     item4 = InlineKeyboardButton("⛏️ Майнинг - 1400 монет", callback_data=f"buy_upgrade_mining_{user_id}")
-    item5 = InlineKeyboardButton("🪙 VIP - 15000 монет", callback_data=f"buy_upgrade_vip_{user_id}")
+    item5 = InlineKeyboardButton("🪙 VIP - 50000 монет", callback_data=f"buy_upgrade_vip_{user_id}")
 
     markup.add(item1, item2, item3, item4, item5)
 
@@ -1670,7 +1714,7 @@ def dice_casino(message):
         bot.reply_to(message, "❌ У вас не хватает денег для этой ставки.")
         return
 
-    cursor.execute("SELECT casinobalance FROM casino WHERE rowid = 1")
+    cursor.execute("SELECT casinobalance FROM casino WHERE rowid = 1 WHERE chat_id = ?")
     result_db = cursor.fetchone()
 
     if result_db is None:
@@ -1698,7 +1742,7 @@ def dice_casino(message):
     if rolled_number == chosen_number:
         win = stavka * 5
         update_balance(message.from_user.id, message.chat.id, win)
-        cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (casino_balance - win,))
+        cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1 WHERE chat_id = ?", (casino_balance - win,))
         bot.reply_to(message,
                          f"🤑 Ты выиграл <b>{win}$</b>!\n\n💸 Твой новый баланс: <b>{int(balance_player + win)}$</b>",
                          parse_mode='html')
@@ -1761,7 +1805,7 @@ def coin_flip(message):
             winnings = stavka
             update_balance(user_id, chat_id, +winnings)
 
-            cursor.execute("SELECT casinobalance FROM casino")
+            cursor.execute("SELECT casinobalance FROM casino WHERE chat_id = ?", (chat_id,))
             result = cursor.fetchone()
 
             if result:
@@ -1773,14 +1817,13 @@ def coin_flip(message):
         else:
             update_balance(user_id, chat_id, -stavka)
 
-            cursor.execute("SELECT casinobalance FROM casino")
+            cursor.execute("SELECT casinobalance FROM casino WHERE chat_id = ?", (chat_id,))
             result = cursor.fetchone()
 
             if result:
                 current_balance = result[0]
                 new_balance = current_balance + stavka
-                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
-
+                cursor.execute("UPDATE casino SET casinobalance = ? WHERE chat_id = ?", (new_balance, chat_id))
             bot.send_message(chat_id, f"<i>🤠 @{message.from_user.username}, к сожалению, ты проиграл!</i>\n\n💸 <b>Ты проиграл: {int(stavka)}$</b>", parse_mode='html')
 
     except:
@@ -1860,12 +1903,12 @@ def tower_callback(call):
             if current_floor > TOTAL_FLOORS:
                 bot.edit_message_text(f"🎉 Ты прошел всю башню и, к сожалению, выиграл {winnings}$!", chat_id, call.message.message_id)
                 update_balance(user_id, chat_id, +winnings)
-                cursor.execute("SELECT casinobalance FROM casino")
+                cursor.execute("SELECT casinobalance FROM casino WHERE chat_id = ?", (chat_id,))
                 result = cursor.fetchone()
                 if result:
                     current_balance = result[0]
                     new_balance = current_balance - winnings
-                    cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+                    cursor.execute("UPDATE casino SET casinobalance = ? WHERE chat_id = ?", (new_balance, chat_id))
                 del game_sessions[user_id]
             else:
                 bot.edit_message_text(f"✅ Правильно! Ты на этаже {current_floor}.\n🍑 Текущий выигрыш: {winnings}$.\n\n🤠 Выбери путь на следующем этаже: 🍆 или 🍑.", chat_id, call.message.message_id)
@@ -1879,11 +1922,64 @@ def tower_callback(call):
             if result:
                 current_balance = result[0]
                 new_balance = current_balance + stavka
-                cursor.execute("UPDATE casino SET casinobalance = ? WHERE rowid = 1", (new_balance,))
+                cursor.execute("UPDATE casino SET casinobalance = ? WHERE chat_id = ?", (new_balance, chat_id))
             del game_sessions[user_id]
 
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Произошла ошибка: {str(e)}")
+
+
+PIPISA_DELAY = 5 * 60 * 60
+
+
+def ensure_last_pipisa_time_column_exists():
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if 'last_pipisa_time' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN last_pipisa_time REAL')
+        conn.commit()
+
+def pipisa(message):
+    current_time = time.time()
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+
+    cursor.execute('SELECT last_pipisa_time FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    result = cursor.fetchone()
+
+    if result:
+        last_pipisa_time = result[0]
+    else:
+        last_pipisa_time = None
+
+    if last_pipisa_time and current_time - last_pipisa_time < PIPISA_DELAY:
+        remaining_time = PIPISA_DELAY - (current_time - last_pipisa_time)
+        hours = int(remaining_time // 3600)
+        minutes = int((remaining_time % 3600) // 60)
+        bot.send_message(chat_id, f"⏳ Вы сможете снова увеличить линейку через {hours} часов и {minutes} минут.")
+        return
+
+    if random.random() <= 0.1:
+        length_change = -random.randint(1, 7)
+        action = "укоротилась"
+        emoji = "😢📏"
+    else:
+        length_change = random.randint(1, 12)
+        action = "увеличилась"
+        emoji = "😎📏"
+
+    update_pipisa(user_id, chat_id, length_change)
+
+    cursor.execute('SELECT pipisa FROM users WHERE user_id = ? AND chat_id = ?', (user_id, chat_id))
+    new_length = cursor.fetchone()[0]
+
+    message_text = f"Ваша линейка {action} на {abs(length_change)} см! {emoji}\nТеперь она: {new_length} см!"
+    bot.reply_to(message, message_text)
+
+    cursor.execute('UPDATE users SET last_pipisa_time = ? WHERE user_id = ? AND chat_id = ?', (current_time, user_id, chat_id))
+    conn.commit()
+
 
 print('Бот запущен без ошибок')
 bot.polling(none_stop=True)
