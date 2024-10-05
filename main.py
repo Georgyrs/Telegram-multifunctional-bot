@@ -13,7 +13,7 @@ from telebot import types
 bot = telebot.TeleBot(config.BOT_TOKEN)
 wikipedia.set_lang(config.WIKIPEDIA_LANGUAGE)
 
-
+print('h')
 def get_time():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d")
