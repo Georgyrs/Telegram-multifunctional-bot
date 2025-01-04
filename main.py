@@ -14,6 +14,7 @@ bot = telebot.TeleBot(config.BOT_TOKEN)
 wikipedia.set_lang(config.WIKIPEDIA_LANGUAGE)
 
 print('h')
+print("SIGNAT BOT VERSION 1.0.0\nBY EVGENCHICK4434 AND GEORGYRS")
 def get_time():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d")
