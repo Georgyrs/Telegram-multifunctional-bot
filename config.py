@@ -1,32 +1,23 @@
-BOT_TOKEN = '7392365900:AAFx3ScXaNCQCranG321GSZGCqQd3vtY3Ks'
+BOT_TOKEN = ''
 DATABASE_NAME = 'bot_database.db'
-GIGACHAT_KEY = 'MmExMTU1ZjUtMzc4MC00NjhkLWI3NWQtMWU0YjYxNGFiOTBlOmZlOWJmNTRmLWI1ZTUtNDZjNi1iZDIwLWZmYWY0MzVmMWE3Zg=='
 
 
-WEATHER_URL = "https://rp5.ru/Погода_в_Калининграде"
-WEATHER_API_URL = "https://rusmeteo.net/weather/kaliningrad/14days/"
+WEATHER_URL = ""
+WEATHER_API_URL = ""
 
-group_preservatident = 1548224823
-casino_owner = 5515972843
-casino_owner_second_id = 7392365900
+group_preservatident =
+casino_owner = 
+casino_owner_second_id =
 
-WIKIPEDIA_LANGUAGE = 'ru'
+WIKIPEDIA_LANGUAGE = ''
 
 
 MEDIA_PATHS = {
-    1: r'static/photo_2024-08-23_16-25-17.jpg',
-    2: r'static/uzas.MP4',
-    3: r'static/photo_2024-08-23_16-25-24.jpg',
-    4: r'static/edit.MP4',
-    5: r'static/zenanagore.MP4'
+    
 
 }
 
 RATING_PATHS = {
-    1: r'static/socialcreditwork.png',
-    2: r'static/creditscam.png',
-    3: r'static/15credit.png',
-    4: r'static/robberyrating.png',
-    5: r'static/zerocredit.png'
+
 
 }
